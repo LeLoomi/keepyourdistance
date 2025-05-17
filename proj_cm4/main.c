@@ -1,14 +1,14 @@
 /******************************************************************************
 * File Name:   main.c
 *
-* Description: This is the source code for CM4 in the the Dual CPU Empty 
-*              Application for ModusToolbox.
+* Description: This is the source code for the PDM PCM Example
+*              for ModusToolbox.
 *
-* Related Document: See README.md
+* Related Document: See README.md 
 *
 *
 *******************************************************************************
-* Copyright 2020-2024, Cypress Semiconductor Corporation (an Infineon company) or
+* Copyright 2021-2022, Cypress Semiconductor Corporation (an Infineon company) or
 * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
 *
 * This software, including source code, documentation and related
@@ -40,87 +40,198 @@
 * so agrees to indemnify Cypress against all liability.
 *******************************************************************************/
 
-#include "cy_pdl.h"
 #include "cyhal.h"
 #include "cybsp.h"
 #include "cy_retarget_io.h"
 
-#define AUDIO_BUFFER_SIZE 512
+#include "stdlib.h"
 
-cyhal_pdm_pcm_t     pdm_pcm;
-cyhal_pdm_pcm_cfg_t cfg =
+/*******************************************************************************
+* Macros
+********************************************************************************/
+/* Define how many samples in a frame */
+#define FRAME_SIZE                  (1024)
+/* Noise threshold hysteresis */
+#define THRESHOLD_HYSTERESIS        0u
+/* Volume ratio for noise and print purposes */
+#define VOLUME_RATIO                (4*FRAME_SIZE)
+/* Desired sample rate. Typical values: 8/16/22.05/32/44.1/48kHz */
+#define SAMPLE_RATE_HZ              8000u
+/* Decimation Rate of the PDM/PCM block. Typical value is 64 */
+#define DECIMATION_RATE             64u
+/* Audio Subsystem Clock. Typical values depends on the desire sample rate:
+- 8/16/48kHz    : 24.576 MHz
+- 22.05/44.1kHz : 22.579 MHz */
+#define AUDIO_SYS_CLOCK_HZ          24576000u
+/* PDM/PCM Pins */
+#define PDM_DATA                    P10_5
+#define PDM_CLK                     P10_4
+
+/*******************************************************************************
+* Function Prototypes
+********************************************************************************/
+void pdm_pcm_isr_handler(void *arg, cyhal_pdm_pcm_event_t event);
+void clock_init(void);
+
+/*******************************************************************************
+* Global Variables
+********************************************************************************/
+/* Interrupt flags */
+volatile bool button_flag = false;
+volatile bool pdm_pcm_flag = true;
+
+/* Volume variables */
+uint32_t volume = 0;
+uint32_t noise_threshold = THRESHOLD_HYSTERESIS;
+
+/* HAL Object */
+cyhal_pdm_pcm_t pdm_pcm;
+cyhal_clock_t   audio_clock;
+cyhal_clock_t   pll_clock;
+
+/* HAL Config */
+const cyhal_pdm_pcm_cfg_t pdm_pcm_cfg = 
 {
-    .sample_rate     = 44000,
-    .decimation_rate = 64,
-    .mode            = CYHAL_PDM_PCM_MODE_LEFT,
-    .word_length     = 16,
-    .left_gain       = 3,  // +0.5 db gain
-    .right_gain      = 0, // -1.0 db gain
+    .sample_rate     = SAMPLE_RATE_HZ,
+    .decimation_rate = DECIMATION_RATE,
+    .mode            = CYHAL_PDM_PCM_MODE_STEREO, 
+    .word_length     = 16,  /* bits */
+    .left_gain       = 0,   /* dB */
+    .right_gain      = 0,   /* dB */
 };
 
+
+/*******************************************************************************
+* Function Name: main
+********************************************************************************
+* Summary:
+* The main function for Cortex-M4 CPU does the following:
+*  Initialization:
+*  - Initializes all the hardware blocks
+*  Do forever loop:
+*  - Check if PDM/PCM flag is set. If yes, report the current volume
+*  - Update the LED status based on the volume and the noise threshold
+*  - Check if the User Button was pressed. If yes, reset the noise threshold
+*
+* Parameters:
+*  void
+*
+* Return:
+*  int
+*
+*******************************************************************************/
 int main(void)
 {
     cy_rslt_t result;
+    int16_t  audio_frame[FRAME_SIZE] = {0};
 
-    // 1. BSP initialisieren
-    result = cybsp_init();
+    /* Initialize the device and board peripherals */
+    result = cybsp_init() ;
     if (result != CY_RSLT_SUCCESS)
     {
         CY_ASSERT(0);
     }
 
-    // 2. UART initialisieren für printf
-    result = cy_retarget_io_init_fc(CYBSP_DEBUG_UART_TX, CYBSP_DEBUG_UART_RX,
-                                   CYBSP_DEBUG_UART_CTS, CYBSP_DEBUG_UART_RTS, CY_RETARGET_IO_BAUDRATE);
-    if (result != CY_RSLT_SUCCESS)
-    {
-        CY_ASSERT(0);
-    }
-
+    /* Enable global interrupts */
     __enable_irq();
 
-    printf("PDM Microphone Example Started\r\n");
+    /* Init the clocks */
+    clock_init();
 
-    // 3. PDM/PCM initialisieren
-    result = cyhal_pdm_pcm_init(&pdm_pcm, P10_5, P10_4, NULL, &cfg);
-    if (result != CY_RSLT_SUCCESS)
-    {
-        printf("Failed to initialize PDM/PCM\r\n");
-        CY_ASSERT(0);
-    }
+    /* Initialize retarget-io to use the debug UART port */
+    cy_retarget_io_init(CYBSP_DEBUG_UART_TX, CYBSP_DEBUG_UART_RX, CY_RETARGET_IO_BAUDRATE);
 
-    // 4. PDM/PCM starten
-    result = cyhal_pdm_pcm_start(&pdm_pcm);
-    if (result != CY_RSLT_SUCCESS)
-    {
-        printf("Failed to start PDM/PCM\r\n");
-        CY_ASSERT(0);
-    }
+    /* Initialize the User LED */
+    cyhal_gpio_init(CYBSP_USER_LED, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
 
-    int16_t audio_buffer[AUDIO_BUFFER_SIZE] = {0};
-    size_t length = AUDIO_BUFFER_SIZE;
-
+    /* Initialize the PDM/PCM block */
+    cyhal_pdm_pcm_init(&pdm_pcm, PDM_DATA, PDM_CLK, &audio_clock, &pdm_pcm_cfg);
+    cyhal_pdm_pcm_register_callback(&pdm_pcm, pdm_pcm_isr_handler, NULL);
+    cyhal_pdm_pcm_enable_event(&pdm_pcm, CYHAL_PDM_PCM_ASYNC_COMPLETE, CYHAL_ISR_PRIORITY_DEFAULT, true);
     cyhal_pdm_pcm_start(&pdm_pcm);
+    
+    /* \x1b[2J\x1b[;H - ANSI ESC sequence for clear screen */
+    printf("\x1b[2J\x1b[;H");
 
-    for (;;)
+    printf("****************** \
+    PDM/PCM Example \
+    ****************** \r\n\n");
+
+    for(;;)
     {
-        cy_rslt_t read_result = cyhal_pdm_pcm_read(&pdm_pcm, audio_buffer, &length);
-        printf("%u\n", length);
-
-        if (read_result == CY_RSLT_SUCCESS)
+        /* Check if any microphone has data to process */
+        if (pdm_pcm_flag)
         {
-            printf("Audio Samples: ");
-            for (int i = 0; i < 10; i += 2)
+            /* Clear the PDM/PCM flag */
+            pdm_pcm_flag = 0;
+
+            /* Reset the volume */
+            volume = 0;
+
+            /* Calculate the volume by summing the absolute value of all the 
+             * audio data from a frame */
+            for (uint32_t index = 0; index < FRAME_SIZE; index++)
             {
-                printf("L:%d R:%d\n", audio_buffer[i], audio_buffer[i+1]);
+                volume += abs(audio_frame[index]);
             }
-            printf("\r\n");
 
-            cyhal_system_delay_ms(200);
+            /* Prepare line to report the volume */
+            printf("\n\r");
+
+            /* Report the volume */
+            printf("Volume: %lu\n", volume);
+
+            /* Setup to read the next frame */
+            cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
         }
-        else printf("PDM read error: 0x%lu\r\n", read_result);
-        
-    }
 
-    return 0;
+        /* Reset the noise threshold if User Button is pressed */
+
+        cyhal_syspm_sleep();
+
+    }
 }
+
+/*******************************************************************************
+* Function Name: pdm_pcm_isr_handler
+********************************************************************************
+* Summary:
+*  PDM/PCM ISR handler. Set a flag to be processed in the main loop.
+*
+* Parameters:
+*  arg: not used
+*  event: event that occurred
+*
+*******************************************************************************/
+void pdm_pcm_isr_handler(void *arg, cyhal_pdm_pcm_event_t event)
+{
+    (void) arg;
+    (void) event;
+
+    pdm_pcm_flag = true;
+}
+
+/*******************************************************************************
+* Function Name: clock_init
+********************************************************************************
+* Summary:
+*  Initialize the clocks in the system.
+*
+*******************************************************************************/
+void clock_init(void)
+{
+    /* Initialize the PLL */
+    cyhal_clock_reserve(&pll_clock, &CYHAL_CLOCK_PLL[0]);
+    cyhal_clock_set_frequency(&pll_clock, AUDIO_SYS_CLOCK_HZ, NULL);
+    cyhal_clock_set_enabled(&pll_clock, true, true);
+
+    /* Initialize the audio subsystem clock (CLK_HF[1]) 
+     * The CLK_HF[1] is the root clock for the I2S and PDM/PCM blocks */
+    cyhal_clock_reserve(&audio_clock, &CYHAL_CLOCK_HF[1]);
+
+    /* Source the audio subsystem clock from PLL */
+    cyhal_clock_set_source(&audio_clock, &pll_clock);
+    cyhal_clock_set_enabled(&audio_clock, true, true);
+}
+
+/* [] END OF FILE */
