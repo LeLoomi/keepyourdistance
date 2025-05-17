@@ -273,8 +273,8 @@ int main(void)
                         volume += abs(audio_frame[index]);
                     }
 
-                    /* Report the volume */
-                    printf("Volume: %lu\n", volume);
+            /* Report the volume */
+            printf("Volume: %lu\n", volume);
 
                     /* Setup to read the next frame */
                     cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
