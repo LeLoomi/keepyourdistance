@@ -44,13 +44,37 @@
 #include "cycfg.h"
 #include "cybsp.h"
 
+#include "ipc_communication.h"
+
 #define CYHAL_GET_PORTADDR(pin)    (Cy_GPIO_PortToAddr(CYHAL_GET_PORT(pin)))
 #define CYHAL_GET_PORT(pin)         ((uint8_t)(((uint8_t)pin) >> 3U))
+
+#define SEND_IPC_MSG(x) ipc_msg.cmd = x; \
+                        Cy_IPC_Pipe_SendMessage(USER_IPC_PIPE_EP_ADDR_CM0, \
+                                                USER_IPC_PIPE_EP_ADDR_CM4, \
+                                                (void *) &ipc_msg, 0);  
+
+static volatile uint8_t msg_cmd = 0;
+
+static ipc_msg_t ipc_msg = {              /* IPC structure to be sent to CM4  */
+    .client_id  = IPC_CM0_TO_CM4_CLIENT_ID,
+    .cpu_status = 0,
+    .intr_mask   = USER_IPC_PIPE_INTR_MASK,
+    .cmd        = IPC_CMD_STATUS,
+    .value      = 0
+};
+
+static void cm0p_msg_callback(uint32_t *msg);
 
 int main(void)
 {
     /* Enable global interrupts */
     __enable_irq();
+
+    cy_en_ipc_pipe_status_t ipc_status;
+
+    /* Init the IPC communication for CM0+ */
+    setup_ipc_communication_cm0();
     
     cy_rslt_t result;
 
@@ -75,6 +99,7 @@ int main(void)
 
     for (;;)
     {
+        SEND_IPC_MSG(IPC_CMD_START);
         Cy_SysLib_DelayUs(25);
         Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 1UL);
         Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 0UL);
@@ -82,6 +107,30 @@ int main(void)
         Cy_SysLib_DelayUs(25);
         Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 0UL);
         Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 1UL);
+    }
+}
+
+/*******************************************************************************
+* Function Name: cm0p_msg_callback
+********************************************************************************
+* Summary:
+*   Callback function to execute when receiving a message from CM4 to CM0+.
+*
+* Parameters:
+*   msg: message received
+*
+*******************************************************************************/
+static void cm0p_msg_callback(uint32_t *msg)
+{
+    ipc_msg_t *ipc_recv_msg;
+
+    if (msg != NULL)
+    {
+        /* Cast the message received to the IPC structure */
+        ipc_recv_msg = (ipc_msg_t *) msg;
+
+        /* Extract the command to be processed in the main loop */
+        msg_cmd = ipc_recv_msg->cmd;
     }
 }
 

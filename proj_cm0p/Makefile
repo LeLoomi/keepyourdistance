@@ -66,11 +66,11 @@ CORE_NAME=CM0P_0
 # tree for source code and builds it. The SOURCES variable can be used to
 # manually add source code to the build process from a location not searched
 # by default, or otherwise not found by the build system.
-SOURCES=
+SOURCES=$(wildcard ../shared/source/COMPONENT_CM0P/*.c)
 
 # Like SOURCES, but for include directories. Value should be paths to
 # directories (without a leading -I).
-INCLUDES=
+INCLUDES=../shared/include
 
 # Add additional defines to the build process (without a leading -D).
 DEFINES+=CY_CORTEX_M4_APPL_ADDR=CY_FLASH_BASE+0x4400U

@@ -46,6 +46,19 @@
 
 #include "stdlib.h"
 
+#include "ipc_communication.h"
+
+
+static void cm4_msg_callback(uint32_t *msg);
+
+/* IPC structure to be sent to CM0+ */
+static ipc_msg_t ipc_msg = {
+    .client_id  = IPC_CM4_TO_CM0_CLIENT_ID,
+    .cpu_status = 0,
+    .intr_mask  = USER_IPC_PIPE_INTR_MASK,
+    .cmd        = IPC_CMD_INIT,
+};
+
 /*******************************************************************************
 * Macros
 ********************************************************************************/
@@ -77,7 +90,6 @@ void clock_init(void);
 * Global Variables
 ********************************************************************************/
 /* Interrupt flags */
-volatile bool button_flag = false;
 volatile bool pdm_pcm_flag = true;
 
 /* Volume variables */
@@ -100,6 +112,38 @@ const cyhal_pdm_pcm_cfg_t pdm_pcm_cfg =
     .right_gain      = 0,   /* dB */
 };
 
+/* Message variables */
+static volatile bool msg_flag = false;
+static volatile uint32_t msg_value;
+static volatile uint32_t button_flag;
+static volatile bool button_pressed = false;
+
+/*******************************************************************************
+* Function Name: cm4_msg_callback
+********************************************************************************
+* Summary:
+*   Callback function to execute when receiving a message from CM0+ to CM4.
+*
+* Parameters:
+*   msg: message received
+*
+*******************************************************************************/
+static void cm4_msg_callback(uint32_t *msg)
+{
+    ipc_msg_t *ipc_recv_msg;
+
+    if (msg != NULL)
+    {
+        /* Cast received message to the IPC message structure */
+        ipc_recv_msg = (ipc_msg_t *) msg;
+
+        /* Extract the message value */
+        msg_value = ipc_recv_msg->value;
+
+        /* Set message flag */
+        msg_flag = true;
+    }   
+}
 
 /*******************************************************************************
 * Function Name: main
@@ -123,7 +167,15 @@ const cyhal_pdm_pcm_cfg_t pdm_pcm_cfg =
 int main(void)
 {
     cy_rslt_t result;
+    cy_en_ipc_pipe_status_t ipc_status;
     int16_t  audio_frame[FRAME_SIZE] = {0};
+
+    setup_ipc_communication_cm4();
+
+        /* Register the Message Callback */
+    ipc_status = Cy_IPC_Pipe_RegisterCallback(USER_IPC_PIPE_EP_ADDR,
+                    cm4_msg_callback,
+                    IPC_CM0_TO_CM4_CLIENT_ID);  
 
     /* Initialize the device and board peripherals */
     result = cybsp_init() ;
