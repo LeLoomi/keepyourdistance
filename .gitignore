@@ -40,6 +40,9 @@ openocd.tcl
 .vscode/
 *.code-workspace
 
+# Ninja build
+*.ninja_log
+
 # IAR Embedded Workbench files
 
 # IAR Project file.

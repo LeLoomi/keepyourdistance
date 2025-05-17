@@ -44,12 +44,21 @@
 #include "cycfg.h"
 #include "cybsp.h"
 
+#define CYHAL_GET_PORTADDR(pin)    (Cy_GPIO_PortToAddr(CYHAL_GET_PORT(pin)))
+#define CYHAL_GET_PORT(pin)         ((uint8_t)(((uint8_t)pin) >> 3U))
+
 int main(void)
 {
     /* Enable global interrupts */
     __enable_irq();
     
     cy_rslt_t result;
+
+    GPIO_PRT_Type *CYBSP_PIEZO_0_PORT = CYHAL_GET_PORTADDR(P9_0);
+    uint8_t CYBSP_PIEZO_0_PIN = CYHAL_GET_PIN(P9_0);
+
+    GPIO_PRT_Type *CYBSP_PIEZO_1_PORT = CYHAL_GET_PORTADDR(P9_1);
+    uint8_t CYBSP_PIEZO_1_PIN = CYHAL_GET_PIN(P9_1);
 
     /* Initialize the device and board peripherals */
     result = cybsp_init() ;
@@ -61,9 +70,18 @@ int main(void)
     /* Enable CM4. CY_CORTEX_M4_APPL_ADDR must be updated if CM4 memory layout is changed. */
     Cy_SysEnableCM4(CY_CORTEX_M4_APPL_ADDR);
 
+    Cy_GPIO_Pin_FastInit(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, CY_GPIO_DM_STRONG, 0UL, HSIOM_SEL_GPIO);
+    Cy_GPIO_Pin_FastInit(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, CY_GPIO_DM_STRONG, 0UL, HSIOM_SEL_GPIO);
+
     for (;;)
     {
-        Cy_SysPm_DeepSleep(CY_SYSPM_WAIT_FOR_INTERRUPT);
+        Cy_SysLib_Delay(1);
+        Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 1UL);
+        Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 0UL);
+
+        Cy_SysLib_Delay(1);
+        Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 0UL);
+        Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 1UL);
     }
 }
 
