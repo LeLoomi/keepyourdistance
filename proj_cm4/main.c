@@ -56,7 +56,7 @@
 /* Volume ratio for noise and print purposes */
 #define VOLUME_RATIO                (4*FRAME_SIZE)
 /* Desired sample rate. Typical values: 8/16/22.05/32/44.1/48kHz */
-#define SAMPLE_RATE_HZ              8000u
+#define SAMPLE_RATE_HZ              44000u
 /* Decimation Rate of the PDM/PCM block. Typical value is 64 */
 #define DECIMATION_RATE             64u
 /* Audio Subsystem Clock. Typical values depends on the desire sample rate:
@@ -179,7 +179,7 @@ int main(void)
             printf("\n\r");
 
             /* Report the volume */
-            printf("Volume: %lu\n", volume);
+            printf("%lu", volume);
 
             /* Setup to read the next frame */
             cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
