@@ -102,19 +102,14 @@ int main(void)
     msg_cmd = IPC_END_R;
     for (;;)
     {
-        switch (msg_cmd) {
-            case IPC_END_R:
-                SEND_IPC_MSG(IPC_START_S);
-                Cy_SysLib_DelayUs(25);
-                Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 1UL);
-                Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 0UL);
+        Cy_SysLib_DelayUs(25);
+        Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 1UL);
+        Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 0UL);
 
-                Cy_SysLib_DelayUs(25);
-                Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 0UL);
-                Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 1UL);
-                msg_cmd = 0;
-                break;
-        }
+        Cy_SysLib_DelayUs(25);
+        Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 0UL);
+        Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 1UL);
+        msg_cmd = 0;
     }
 }
 

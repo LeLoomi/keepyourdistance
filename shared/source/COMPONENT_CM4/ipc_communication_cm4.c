@@ -80,36 +80,6 @@ void setup_ipc_communication_cm4(void)
     (void) Cy_IPC_Sema_Init(CY_IPC_CHAN_SEMA, 0ul, NULL);
 #endif /* __CM0P_PRESENT */
 
-    /* Create an array of endpoint structures */
-    static cy_stc_ipc_pipe_ep_t systemIpcPipeEpArray[CY_IPC_MAX_ENDPOINTS];
-
-    Cy_IPC_Pipe_Config(systemIpcPipeEpArray);
-
-    static cy_ipc_pipe_callback_ptr_t systemIpcPipeSysCbArray[CY_SYS_CYPIPE_CLIENT_CNT];
-
-    static const cy_stc_ipc_pipe_config_t systemIpcPipeConfigCm4 =
-    {
-    /* .ep0ConfigData */
-        {
-            CY_IPC_INTR_CYPIPE_EP0,         /* .ipcNotifierNumber    */  
-            CY_SYS_INTR_CYPIPE_PRIOR_EP0,   /* .ipcNotifierPriority  */  
-            CY_SYS_INTR_CYPIPE_MUX_EP0,     /* .ipcNotifierMuxNumber */  
-            CY_IPC_EP_CYPIPE_CM0_ADDR,      /* .epAddress            */  
-            CY_SYS_CYPIPE_CONFIG_EP0        /* .epConfig             */  
-        },
-    /* .ep1ConfigData */
-        {
-            CY_IPC_INTR_CYPIPE_EP1,         /* .ipcNotifierNumber    */
-            CY_SYS_INTR_CYPIPE_PRIOR_EP1,   /* .ipcNotifierPriority  */
-            0u,                             /* .ipcNotifierMuxNumber */
-            CY_IPC_EP_CYPIPE_CM4_ADDR,      /* .epAddress            */
-            CY_SYS_CYPIPE_CONFIG_EP1        /* .epConfig             */
-        },
-        CY_SYS_CYPIPE_CLIENT_CNT,           /* .endpointClientsCount     */   
-        systemIpcPipeSysCbArray,            /* .endpointsCallbacksArray  */   
-        &Cy_SysIpcPipeIsrCm4                /* .userPipeIsrHandler       */  
-    };
-
     static cy_ipc_pipe_callback_ptr_t user_ipc_pipe_cb_array[USER_IPC_PIPE_CLIENT_CNT];
 
     static const cy_stc_ipc_pipe_config_t user_ipc_pipe_config_cm4 =
@@ -134,9 +104,6 @@ void setup_ipc_communication_cm4(void)
         user_ipc_pipe_cb_array,           /* .endpointsCallbacksArray  */  
         &user_ipc_pipe_isr_cm4               /* .userPipeIsrHandler       */  
     };
-
-    
-    Cy_IPC_Pipe_Init(&systemIpcPipeConfigCm4);
 
 #if defined(CY_DEVICE_PSOC6ABLE2)
     Cy_Flash_Init();

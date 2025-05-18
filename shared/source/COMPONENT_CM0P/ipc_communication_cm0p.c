@@ -74,36 +74,6 @@ void setup_ipc_communication_cm0(void)
 
     (void) Cy_IPC_Sema_Init(CY_IPC_CHAN_SEMA, CY_IPC_SEMA_COUNT, ipcSemaArray);
 
-    /* Create an array of endpoint structures */
-    static cy_stc_ipc_pipe_ep_t systemIpcPipeEpArray[CY_IPC_MAX_ENDPOINTS];
-
-    Cy_IPC_Pipe_Config(systemIpcPipeEpArray);
-
-    static cy_ipc_pipe_callback_ptr_t systemIpcPipeSysCbArray[CY_SYS_CYPIPE_CLIENT_CNT];
-
-    static const cy_stc_ipc_pipe_config_t systemIpcPipeConfigCm0 =
-    {
-    /* .ep0ConfigData */
-        {
-            CY_IPC_INTR_CYPIPE_EP0,       /* .ipcNotifierNumber    */
-            CY_SYS_INTR_CYPIPE_PRIOR_EP0, /* .ipcNotifierPriority  */
-            CY_SYS_INTR_CYPIPE_MUX_EP0,   /* .ipcNotifierMuxNumber */
-            CY_IPC_EP_CYPIPE_CM0_ADDR,    /* .epAddress            */
-            CY_SYS_CYPIPE_CONFIG_EP0      /* .epConfig             */
-        },
-    /* .ep1ConfigData */
-        {
-            CY_IPC_INTR_CYPIPE_EP1,       /* .ipcNotifierNumber    */
-            CY_SYS_INTR_CYPIPE_PRIOR_EP1, /* .ipcNotifierPriority  */
-            0u,                           /* .ipcNotifierMuxNumber */
-            CY_IPC_EP_CYPIPE_CM4_ADDR,    /* .epAddress            */
-            CY_SYS_CYPIPE_CONFIG_EP1      /* .epConfig             */
-        },
-      CY_SYS_CYPIPE_CLIENT_CNT,           /* .endpointClientsCount     */ 
-      systemIpcPipeSysCbArray,            /* .endpointsCallbacksArray  */ 
-      &Cy_SysIpcPipeIsrCm0                /* .userPipeIsrHandler       */
-    };
-
     static cy_ipc_pipe_callback_ptr_t user_ipc_pipe_cb_array[USER_IPC_PIPE_CLIENT_CNT];
 
     static const cy_stc_ipc_pipe_config_t user_ipc_pipe_config_cm0 =
@@ -128,8 +98,6 @@ void setup_ipc_communication_cm0(void)
         user_ipc_pipe_cb_array,            /* .endpointsCallbacksArray  */  
         &user_ipc_pipe_isr_cm0             /* .userPipeIsrHandler       */  
     };
-
-    Cy_IPC_Pipe_Init(&systemIpcPipeConfigCm0);
 
 #if defined(CY_DEVICE_PSOC6ABLE2)
     Cy_Flash_Init();
