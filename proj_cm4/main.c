@@ -221,6 +221,7 @@ int main(void)
 
         switch (msg_cmd) {
             case IPC_START_S:
+                printf("SENDING BEEEEP");
                 /* Check if any microphone has data to process */
                 if (pdm_pcm_flag)
                 {
