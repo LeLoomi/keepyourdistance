@@ -43,8 +43,29 @@
 #include "cyhal.h"
 #include "cybsp.h"
 #include "cy_retarget_io.h"
+#include "COMPONENT_CMSIS_DSP/Include/dsp/transform_functions.h"
 
 #include "stdlib.h"
+
+#include "ipc_communication.h"
+
+
+#define SEND_IPC_MSG(x) ipc_msg.cmd = x; \
+                        Cy_IPC_Pipe_SendMessage(USER_IPC_PIPE_EP_ADDR_CM0, \
+                                                USER_IPC_PIPE_EP_ADDR_CM4, \
+                                                (void *) &ipc_msg, 0); 
+
+static void cm4_msg_callback(uint32_t *msg);
+
+static volatile uint8_t msg_cmd = 0;
+
+/* IPC structure to be sent to CM0+ */
+static ipc_msg_t ipc_msg = {
+    .client_id  = IPC_CM4_TO_CM0_CLIENT_ID,
+    .cpu_status = 0,
+    .intr_mask  = USER_IPC_PIPE_INTR_MASK,
+    .cmd        = IPC_CMD_INIT,
+};
 
 /*******************************************************************************
 * Macros
@@ -77,7 +98,6 @@ void clock_init(void);
 * Global Variables
 ********************************************************************************/
 /* Interrupt flags */
-volatile bool button_flag = false;
 volatile bool pdm_pcm_flag = true;
 
 /* Volume variables */
@@ -100,6 +120,35 @@ const cyhal_pdm_pcm_cfg_t pdm_pcm_cfg =
     .right_gain      = 0,   /* dB */
 };
 
+/* Message variables */
+static volatile bool msg_flag = false;
+static volatile uint32_t msg_value;
+static volatile uint32_t button_flag;
+static volatile bool button_pressed = false;
+
+/*******************************************************************************
+* Function Name: cm4_msg_callback
+********************************************************************************
+* Summary:
+*   Callback function to execute when receiving a message from CM0+ to CM4.
+*
+* Parameters:
+*   msg: message received
+*
+*******************************************************************************/
+static void cm4_msg_callback(uint32_t *msg)
+{
+    ipc_msg_t *ipc_recv_msg;
+
+    if (msg != NULL)
+    {
+        /* Cast received message to the IPC message structure */
+        ipc_recv_msg = (ipc_msg_t *) msg;
+
+        msg_cmd = ipc_recv_msg->cmd;
+
+    }   
+}
 
 /*******************************************************************************
 * Function Name: main
@@ -123,7 +172,19 @@ const cyhal_pdm_pcm_cfg_t pdm_pcm_cfg =
 int main(void)
 {
     cy_rslt_t result;
+    cy_en_ipc_pipe_status_t ipc_status;
     int16_t  audio_frame[FRAME_SIZE] = {0};
+
+    setup_ipc_communication_cm4();
+
+    /* Register the Message Callback */
+    ipc_status = Cy_IPC_Pipe_RegisterCallback(USER_IPC_PIPE_EP_ADDR,
+                    cm4_msg_callback,
+                    IPC_CM0_TO_CM4_CLIENT_ID); 
+    if (ipc_status != CY_IPC_PIPE_SUCCESS)
+    {
+        CY_ASSERT(0);
+    } 
 
     /* Initialize the device and board peripherals */
     result = cybsp_init() ;
@@ -142,53 +203,58 @@ int main(void)
     cy_retarget_io_init(CYBSP_DEBUG_UART_TX, CYBSP_DEBUG_UART_RX, CY_RETARGET_IO_BAUDRATE);
 
     /* Initialize the User LED */
-    cyhal_gpio_init(CYBSP_USER_LED, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
+    // cyhal_gpio_init(CYBSP_USER_LED, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
 
     /* Initialize the PDM/PCM block */
     cyhal_pdm_pcm_init(&pdm_pcm, PDM_DATA, PDM_CLK, &audio_clock, &pdm_pcm_cfg);
     cyhal_pdm_pcm_register_callback(&pdm_pcm, pdm_pcm_isr_handler, NULL);
     cyhal_pdm_pcm_enable_event(&pdm_pcm, CYHAL_PDM_PCM_ASYNC_COMPLETE, CYHAL_ISR_PRIORITY_DEFAULT, true);
     cyhal_pdm_pcm_start(&pdm_pcm);
-    
-    /* \x1b[2J\x1b[;H - ANSI ESC sequence for clear screen */
-    printf("\x1b[2J\x1b[;H");
 
-    printf("****************** \
-    PDM/PCM Example \
-    ****************** \r\n\n");
+    // for testing
+    SEND_IPC_MSG(3);
 
     for(;;)
     {
-        /* Check if any microphone has data to process */
-        if (pdm_pcm_flag)
-        {
-            /* Clear the PDM/PCM flag */
-            pdm_pcm_flag = 0;
+        switch (msg_cmd) {
+            case IPC_START_S:
 
-            /* Reset the volume */
-            volume = 0;
+                printf("LISTENING TO BEEP");
+                /* Check if any microphone has data to process */
+                if (pdm_pcm_flag)
+                {
+                    /* Clear the PDM/PCM flag */
+                    pdm_pcm_flag = 0;
 
-            /* Calculate the volume by summing the absolute value of all the 
-             * audio data from a frame */
-            for (uint32_t index = 0; index < FRAME_SIZE; index++)
-            {
-                volume += abs(audio_frame[index]);
-            }
+                    /* Reset the volume */
+                    volume = 0;
 
-            /* Prepare line to report the volume */
-            printf("\n\r");
+                    /* Calculate the volume by summing the absolute value of all the 
+                    * audio data from a frame */
+                    for (uint32_t index = 0; index < FRAME_SIZE; index++)
+                    {
+                        volume += abs(audio_frame[index]);
+                    }
 
-            /* Report the volume */
-            printf("Volume: %lu\n", volume);
+                    /* Prepare line to report the volume */
+                    printf("\n\r");
 
-            /* Setup to read the next frame */
-            cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
+                    /* Report the volume */
+                    printf("Volume: %lu\n", volume);
+
+                    /* Setup to read the next frame */
+                    cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
+
+                    // SEND_IPC_MSG(IPC_END_R);
+                }
+
+                /* Reset the noise threshold if User Button is pressed */
+
+                cyhal_syspm_sleep();
         }
 
-        /* Reset the noise threshold if User Button is pressed */
 
-        cyhal_syspm_sleep();
-
+        msg_cmd = 0;
     }
 }
 

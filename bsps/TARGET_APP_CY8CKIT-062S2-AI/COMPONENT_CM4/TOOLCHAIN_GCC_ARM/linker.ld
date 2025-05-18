@@ -48,7 +48,7 @@ STACK_SIZE = 0x1000;
 * https://github.com/Infineon/psoc6cm0p
 */
 /* The size of the Cortex-M0+ application image at the start of FLASH */
-FLASH_CM0P_SIZE  = 0x4400;
+FLASH_CM0P_SIZE  = 0x9000;
 
 /* Force symbol to be entered in the output file as an undefined symbol. Doing
 * this may, for example, trigger linking of additional modules from standard
@@ -70,7 +70,7 @@ MEMORY
      * Your changes must be aligned with the corresponding memory regions for CM0+ core in 'xx_cm0plus.ld',
      * where 'xx' is the device group; for example, 'cy8c6xx7_cm0plus.ld'.
      */
-    ram               (rwx)   : ORIGIN = 0x08002000, LENGTH = 0xFD800
+    ram               (rwx)   : ORIGIN = 0x08004000, LENGTH = 0x3C000
     flash             (rx)    : ORIGIN = 0x10000000, LENGTH = 0x200000
 
     /* This is a 32K flash region used for EEPROM emulation. This region can also be used as the general purpose flash.
