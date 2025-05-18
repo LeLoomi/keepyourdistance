@@ -17,11 +17,13 @@ BURST_CYCLES = 5
 SPEED_OF_SOUND = 343  
 MAX_LEN = 1000
 
+'''
 port_name = serial_ports()
 if port_name is None:
     port_name = '/dev/tty.usbmodem103'
+'''
 
-ser = serial.Serial(port_name, 115200, timeout=1)
+ser = serial.Serial('/dev/tty.usbmodem103', 115200, timeout=1)
 
 burst_len = int(SR/CARRIER_FREQ)
 one_cycle = np.concatenate([np.ones(burst_len), np.zeros(burst_len)])
@@ -41,10 +43,16 @@ canvas.get_tk_widget().pack()
 serial_data = []  # globale Liste für empfangene Daten
 
 def calculate(data_np):
+    start_index = data_np.index("X") if "X" in data_np else 0
+
+    data_np = np.array([
+    x for x in data_np
+    if isinstance(x, (int, float)) and not np.isnan(x)
+    ], dtype=float)
+
     fft_vals = np.fft.rfft(data_np)
     fft_freqs = np.fft.rfftfreq(len(data_np), 1/SR)
 
-    
     # Bandpass filter (optional)
     band_mask = (fft_freqs >= CARRIER_FREQ - BAND_FREQ) & (fft_freqs <= CARRIER_FREQ + BAND_FREQ)
 
@@ -52,17 +60,14 @@ def calculate(data_np):
     max_val = np.max(np.abs(fft_vals[band_mask]))
     fft_vals_normalized = fft_vals/max_val
 
-
     filtered_fft_vals = np.zeros_like(fft_vals, dtype=complex)
     filtered_fft_vals[band_mask] = fft_vals[band_mask]
 
     # inverse FFT, to get filtered Signal
     data_filtered = np.fft.ifft(filtered_fft_vals)
-
-    data_filtered = np.fft.ifft(data_filtered)
     convolution = np.convolve(data_filtered, burst_pattern, mode='same')
 
-    start_index = data_np.index("X")
+    
     time_peak = (np.argmax(convolution) - start_index) / SR
     distance = time_peak * SPEED_OF_SOUND
     distance_var.set(f"Distanz: {distance:.3f} m")
