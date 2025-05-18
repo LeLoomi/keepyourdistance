@@ -43,6 +43,7 @@ serial_data = []  # globale Liste für empfangene Daten
 def calculate(data_np):
     fft_vals = np.fft.rfft(data_np)
     fft_freqs = np.fft.rfftfreq(len(data_np), 1/SR)
+
     
     # Bandpass filter (optional)
     band_mask = (fft_freqs >= CARRIER_FREQ - BAND_FREQ) & (fft_freqs <= CARRIER_FREQ + BAND_FREQ)
@@ -61,7 +62,8 @@ def calculate(data_np):
     data_filtered = np.fft.ifft(data_filtered)
     convolution = np.convolve(data_filtered, burst_pattern, mode='same')
 
-    time_peak = np.argmax(convolution) / SR
+    start_index = data_np.index("X")
+    time_peak = (np.argmax(convolution) - start_index) / SR
     distance = time_peak * SPEED_OF_SOUND
     distance_var.set(f"Distanz: {distance:.3f} m")
 
@@ -86,9 +88,12 @@ def update_plot():
         try:
             line = ser.readline().decode('utf-8').strip()
             if line:  
-                val = float(line)
-                serial_data.append(val)
-                print(line)
+                if line == "START_S":
+                    serial_data.append("X")
+                else:
+                    val = float(line)
+                    serial_data.append(val)
+                    print(line)
 
                 if len(serial_data) > MAX_LEN:
                     serial_data.pop(0)
