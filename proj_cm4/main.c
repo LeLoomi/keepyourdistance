@@ -221,6 +221,8 @@ int main(void)
     PDM/PCM Example \
     ****************** \r\n\n");
 
+    SEND_IPC_MSG(3);
+
     for(;;)
     {
         printf("TWO %d\n", msg_cmd);
