@@ -12,16 +12,12 @@ from get_ports import serial_ports
 # Parameters
 SR = 96000  
 CARRIER_FREQ = 40000
-BAND_FREQ = 50000 
+BAND_FREQ = 3000 
 BURST_CYCLES = 5
 SPEED_OF_SOUND = 343  
 MAX_LEN = 1000
 
-port_name = serial_ports()
-if port_name is None:
-    port_name = '/dev/tty.usbmodem103'
-
-ser = serial.Serial(port_name, 115200, timeout=1)
+ser = serial.Serial('/dev/tty.usbmodem103', 115200, timeout=1)
 
 burst_len = int(SR/CARRIER_FREQ)
 one_cycle = np.concatenate([np.ones(burst_len), np.zeros(burst_len)])
@@ -50,34 +46,30 @@ def calculate(data_np):
 
     # normalize
     max_val = np.max(np.abs(fft_vals[band_mask]))
-    fft_vals_normalized = fft_vals/max_val
-
+    fft_vals_normalized = fft_vals #/max_val
 
     filtered_fft_vals = np.zeros_like(fft_vals, dtype=complex)
     filtered_fft_vals[band_mask] = fft_vals[band_mask]
 
     # inverse FFT, to get filtered Signal
     data_filtered = np.fft.ifft(filtered_fft_vals)
-
-    data_filtered = np.fft.ifft(data_filtered)
     convolution = np.convolve(data_filtered, burst_pattern, mode='same')
 
-    start_index = data_np.index("X")
-    time_peak = (np.argmax(convolution) - start_index) / SR
+    #start_index = data_np.index("X")
+    time_peak = np.argmax(convolution) / SR
     distance = time_peak * SPEED_OF_SOUND
     distance_var.set(f"Distanz: {distance:.3f} m")
 
     # Plots updaten
     axs[1].cla()
-    axs[1].set_ylim(0,1)
     axs[1].plot(fft_freqs, np.abs(fft_vals_normalized), color='green')
-    axs[1].set_title("FFT")
+    #axs[1].set_title("FFT")
     axs[1].set_ylabel("Amplitude")
 
     axs[2].cla()
     corr_time = np.arange(len(convolution)) / SR
     axs[2].plot(corr_time, convolution, color='orange')
-    axs[2].set_title("Faltung mit Referenzsignal")
+    #axs[2].set_title("Faltung mit Referenzsignal")
     axs[2].set_xlabel("Zeit (s)")
     axs[2].set_ylabel("Amplitude")
 
@@ -89,7 +81,7 @@ def update_plot():
             line = ser.readline().decode('utf-8').strip()
             if line:  
                 if line == "START_S":
-                    serial_data.append("X")
+                    serial_data.append(0)
                 else:
                     val = float(line)
                     serial_data.append(val)
@@ -104,12 +96,13 @@ def update_plot():
         calculate(serial_data)
 
     axs[0].cla()
+
     axs[0].plot(serial_data, color='blue')
-    axs[0].set_title("Normalisiertes empfangenes Signal (Amplitude)")
-    axs[0].set_ylabel("Normierte Amplitude")
+    axs[0].set_title("Signal")
+    axs[0].set_ylabel("Amplitude")
 
     canvas.draw()
-    root.after(100, update_plot)
+    root.after(250, update_plot)
 
 update_plot()
 root.mainloop()

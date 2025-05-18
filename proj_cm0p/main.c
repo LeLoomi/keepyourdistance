@@ -75,13 +75,17 @@ int main(void)
 
     for (;;)
     {
-        Cy_SysLib_Delay(1);
+        for (int i = 0; i < 5; i++) {
+        Cy_SysLib_DelayUs(12);
         Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 1UL);
         Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 0UL);
 
-        Cy_SysLib_Delay(1);
+        Cy_SysLib_DelayUs(12);
         Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 0UL);
         Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 1UL);
+        }
+
+        //Cy_SysLib_Delay(500);
     }
 }
 
