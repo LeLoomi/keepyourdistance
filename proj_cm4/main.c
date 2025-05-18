@@ -255,7 +255,7 @@ int main(void)
         }
 
 
-
+        msg_cmd = 0;
     }
 }
 
