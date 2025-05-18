@@ -95,6 +95,7 @@ static ipc_msg_t ipc_msg = {
 ********************************************************************************/
 void pdm_pcm_isr_handler(void *arg, cyhal_pdm_pcm_event_t event);
 void clock_init(void);
+void clock_init_fft(void);
 
 /*******************************************************************************
 * Global Variables
@@ -110,6 +111,16 @@ uint32_t noise_threshold = THRESHOLD_HYSTERESIS;
 cyhal_pdm_pcm_t pdm_pcm;
 cyhal_clock_t   audio_clock;
 cyhal_clock_t   pll_clock;
+cyhal_clock_t   fft_clock;
+cyhal_timer_t fft_timer;
+cyhal_timer_cfg_t timer_cfg = {
+    .compare_value = 0,         // Not used for simple ticking
+    .period = 0xFFFFFFFF,       // Max period for free-running
+    .direction = CYHAL_TIMER_DIR_UP,
+    .is_compare = false,
+    .is_continuous = true,
+    .value = 0
+};
 
 /* HAL Config */
 const cyhal_pdm_pcm_cfg_t pdm_pcm_cfg = 
@@ -127,6 +138,7 @@ static volatile bool msg_flag = false;
 static volatile uint32_t msg_value;
 static volatile uint32_t button_flag;
 static volatile bool button_pressed = false;
+static volatile uint32_t start_tick;
 
 /*******************************************************************************
 * Function Name: cm4_msg_callback
@@ -144,6 +156,7 @@ static void cm4_msg_callback(uint32_t *msg)
 
     if (msg != NULL)
     {
+        start_tick = cyhal_timer_read(&fft_timer);
         /* Cast received message to the IPC message structure */
         ipc_recv_msg = (ipc_msg_t *) msg;
 
@@ -220,6 +233,15 @@ int main(void)
     cyhal_pdm_pcm_enable_event(&pdm_pcm, CYHAL_PDM_PCM_ASYNC_COMPLETE, CYHAL_ISR_PRIORITY_DEFAULT, true);
     cyhal_pdm_pcm_start(&pdm_pcm);
 
+    /* initialize clock for the fft timing */
+    clock_init_fft();
+
+    // Initialize the timer with fft_clock as the source
+    cyhal_timer_init(&fft_timer, NC, NULL);
+    cyhal_timer_configure(&fft_timer, &timer_cfg);
+    cyhal_timer_set_frequency(&fft_timer, 10000000); // Match fft_clock frequency (10 MHz)
+    cyhal_timer_start(&fft_timer);
+
     float32_t volume_array[FFT_SIZE] = {0};
 
     int v_index = 0;
@@ -228,11 +250,13 @@ int main(void)
     arm_rfft_fast_init_f32(&rfft_instance, FFT_SIZE);
 
     float32_t results[FFT_SIZE] = {0};
+    // uint32_t result_ticks[FFT_SIZE] = {0};
     for(;;)
     {
         
-        // switch (msg_cmd) {
-            // case IPC_START_S:
+        switch (msg_cmd) {
+            case IPC_START_S:
+            printf("START_S");
                 /* Check if any microphone has data to process */
                 if (pdm_pcm_flag)
                 {
@@ -260,13 +284,14 @@ int main(void)
 
 
                     // Copy input so FFT doesn't modify original
-                    float32_t temp_input[FFT_SIZE];
+                    /* float32_t temp_input[FFT_SIZE];
                     memcpy(temp_input, volume_array, sizeof(temp_input));
 
                     arm_rfft_fast_f32(&rfft_instance, temp_input, results, 1);
 
-                    // print_array(volume_array);
+                    print_array(volume_array);
                     print_array(results);
+                    */
 
                     // SEND_IPC_MSG(IPC_END_R);
                     v_index++;
@@ -282,6 +307,7 @@ int main(void)
 
         msg_cmd = 0;
     }
+}
 }
 
 /*******************************************************************************
@@ -301,6 +327,16 @@ void pdm_pcm_isr_handler(void *arg, cyhal_pdm_pcm_event_t event)
     (void) event;
 
     pdm_pcm_flag = true;
+}
+
+void clock_init_fft(void)
+{
+    /* Reserve a high-frequency clock (e.g., CLK_HF[2]) for FFT/timing */
+    cyhal_clock_reserve(&fft_clock, &CYHAL_CLOCK_HF[2]);
+
+    /* Optionally set frequency if needed */
+    cyhal_clock_set_frequency(&fft_clock, 10000000, NULL); // 10 MHz example
+    cyhal_clock_set_enabled(&fft_clock, true, true);
 }
 
 /*******************************************************************************
