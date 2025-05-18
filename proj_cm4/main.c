@@ -171,6 +171,8 @@ static void cm4_msg_callback(uint32_t *msg)
 *******************************************************************************/
 int main(void)
 {
+    printf("ONE %d\n", msg_cmd);
+
     cy_rslt_t result;
     cy_en_ipc_pipe_status_t ipc_status;
     int16_t  audio_frame[FRAME_SIZE] = {0};
@@ -220,8 +222,10 @@ int main(void)
 
     for(;;)
     {
+        printf("TWO %d\n", msg_cmd);
         switch (msg_cmd) {
             case IPC_START_S:
+
                 printf("LISTENING TO BEEP");
                 /* Check if any microphone has data to process */
                 if (pdm_pcm_flag)
