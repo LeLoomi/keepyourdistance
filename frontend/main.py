@@ -7,6 +7,7 @@ import seaborn as sns
 import serial
 import tkinter as tk
 from tkinter import ttk
+from get_ports import serial_ports
 
 # Important Parameters
 SR = 48000  # Sampling Rate a
@@ -16,7 +17,11 @@ BURST_CYCLES = 5
 SPEED_OF_SOUND = 343  # m/s
 MAX_LEN = 2048
 
-ser = serial.Serial('/dev/tty.usbmodem103', 115200, timeout=1)
+port_name = serial_ports()
+if port_name is None:
+    port_name = '/dev/tty.usbmodem103'
+
+ser = serial.Serial(port_name, 115200, timeout=1)
 
 # second signal for convolution
 burst_len = (SR / CARRIER_FREQ)
