@@ -9,13 +9,13 @@ import tkinter as tk
 from tkinter import ttk
 from get_ports import serial_ports
 
-# Important Parameters
-SR = 48000  # Sampling Rate a
-CARRIER_FREQ = 20000
-BAND_FREQ = 3000 
+# Parameters
+SR = 96000  
+CARRIER_FREQ = 40000
+BAND_FREQ = 50000 
 BURST_CYCLES = 5
-SPEED_OF_SOUND = 343  # m/s
-MAX_LEN = 2048
+SPEED_OF_SOUND = 343  
+MAX_LEN = 1000
 
 port_name = serial_ports()
 if port_name is None:
@@ -23,8 +23,7 @@ if port_name is None:
 
 ser = serial.Serial(port_name, 115200, timeout=1)
 
-# second signal for convolution
-burst_len = (SR / CARRIER_FREQ)
+burst_len = int(SR/CARRIER_FREQ)
 one_cycle = np.concatenate([np.ones(burst_len), np.zeros(burst_len)])
 burst_pattern = np.tile(one_cycle, BURST_CYCLES)
 
@@ -39,71 +38,72 @@ fig, axs = plt.subplots(3, 1, figsize=(12, 8), sharex=False)
 canvas = FigureCanvasTkAgg(fig, master=root)
 canvas.get_tk_widget().pack()
 
-data_plot = []
+serial_data = []  # globale Liste für empfangene Daten
+
+def calculate(data_np):
+    fft_vals = np.fft.rfft(data_np)
+    fft_freqs = np.fft.rfftfreq(len(data_np), 1/SR)
+    
+    # Bandpass filter (optional)
+    band_mask = (fft_freqs >= CARRIER_FREQ - BAND_FREQ) & (fft_freqs <= CARRIER_FREQ + BAND_FREQ)
+
+    # normalize
+    max_val = np.max(np.abs(fft_vals[band_mask]))
+    fft_vals_normalized = fft_vals/max_val
+
+
+    filtered_fft_vals = np.zeros_like(fft_vals, dtype=complex)
+    filtered_fft_vals[band_mask] = fft_vals[band_mask]
+
+    # inverse FFT, to get filtered Signal
+    data_filtered = np.fft.ifft(filtered_fft_vals)
+
+    data_filtered = np.fft.ifft(data_filtered)
+    convolution = np.convolve(data_filtered, burst_pattern, mode='same')
+
+    time_peak = np.argmax(convolution) / SR
+    distance = time_peak * SPEED_OF_SOUND
+    distance_var.set(f"Distanz: {distance:.3f} m")
+
+    # Plots updaten
+    axs[1].cla()
+    axs[1].set_ylim(0,1)
+    axs[1].plot(fft_freqs, np.abs(fft_vals_normalized), color='green')
+    axs[1].set_title("FFT")
+    axs[1].set_ylabel("Amplitude")
+
+    axs[2].cla()
+    corr_time = np.arange(len(convolution)) / SR
+    axs[2].plot(corr_time, convolution, color='orange')
+    axs[2].set_title("Faltung mit Referenzsignal")
+    axs[2].set_xlabel("Zeit (s)")
+    axs[2].set_ylabel("Amplitude")
 
 def update_plot():
-    global data_plot
+    global serial_data
 
-    # seriell data reading
     while ser.in_waiting:
         try:
             line = ser.readline().decode('utf-8').strip()
-            val = float(line)
-            data_plot.append(val)
-            if len(data_plot) > MAX_LEN:
-                # discarding values if array ull enoght for window
-                data_plot.pop(0)
-        except:
-            pass
+            if line:  
+                val = float(line)
+                serial_data.append(val)
+                print(line)
 
-    # nomalize raw data to amplitude between [0,1]
-    data_np = np.array(data_plot)
-    norm_data = (data_np - data_np.min()) / (data_np.max() - data_np.min())
+                if len(serial_data) > MAX_LEN:
+                    serial_data.pop(0)
+        except Exception as e:
+            print(f"Fehler beim Lesen: {e}")
 
-    # FFT calcualation
-    fft_vals = np.fft.rfft(norm_data)
-    fft_freqs = np.fft.rfftfreq(len(norm_data), 1/SR)
+    if len(serial_data) >= MAX_LEN:
+        calculate(serial_data)
 
-    # Bandpass filter
-    band_mask = (fft_freqs >= CARRIER_FREQ - BAND_FREQ) & (fft_freqs <= CARRIER_FREQ + BAND_FREQ)
-    filtered_fft = fft_vals[band_mask]
-    filtered_freqs = fft_freqs[band_mask]
-
-    convolution = np.convolve(norm_data,filtered_fft) 
-
-    # plotting normalized data 
-    axs[0].clear()
-    axs[0].plot(norm_data, color='blue')
+    axs[0].cla()
+    axs[0].plot(serial_data, color='blue')
     axs[0].set_title("Normalisiertes empfangenes Signal (Amplitude)")
     axs[0].set_ylabel("Normierte Amplitude")
-    axs[0].set_xlim(0, len(norm_data))
-
-    # plotting fft 
-    axs[1].clear()
-    mask = fft_freqs <= CARRIER_FREQ #masking othe rvalues out because of niquist
-    axs[1].plot(fft_freqs[mask], np.abs(fft_vals[mask]), color='green')
-    axs[1].set_title("FFT (up to 20kHz)")
-    axs[1].set_ylabel("Amplitude")
-    axs[1].set_xlim(0, CARRIER_FREQ)
-
-    # plotting convolution
-    axs[2].clear()
-    corr_time = np.arange(len(corr)) / SR
-    axs[2].plot(corr_time, convolution, color='orange')
-    #axs[2].axvline(time_delay, color='red', linestyle='--', label=f"Echo Peak bei {time_delay*1000:.2f} ms")
-    axs[2].set_title("Convolution with referenz signal")
-    axs[2].set_xlabel("time (s)")
-    axs[2].set_ylabel("Convolution")
-    axs[2].legend()
-    axs[2].set_xlim(0, corr_time[-1])
 
     canvas.draw()
-
-    time_peak = np.argmax(convolution) * 1/SR
-    distance = time_peak * SPEED_OF_SOUND
-
-    distance_var.set(f"Distanz: {distance:.3f} m")
-
     root.after(100, update_plot)
 
 update_plot()
