@@ -43,6 +43,7 @@
 #include "cyhal.h"
 #include "cybsp.h"
 #include "cy_retarget_io.h"
+#include "COMPONENT_CMSIS_DSP/Include/dsp/transform_functions.h"
 
 #include "stdlib.h"
 
@@ -171,8 +172,6 @@ static void cm4_msg_callback(uint32_t *msg)
 *******************************************************************************/
 int main(void)
 {
-    printf("ONE %d\n", msg_cmd);
-
     cy_rslt_t result;
     cy_en_ipc_pipe_status_t ipc_status;
     int16_t  audio_frame[FRAME_SIZE] = {0};
@@ -203,6 +202,8 @@ int main(void)
 
     /* Initialize retarget-io to use the debug UART port */
     cy_retarget_io_init(CYBSP_DEBUG_UART_TX, CYBSP_DEBUG_UART_RX, CY_RETARGET_IO_BAUDRATE);
+
+    printf("ONE %d\n", msg_cmd);
 
     /* Initialize the User LED */
     cyhal_gpio_init(CYBSP_USER_LED, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);

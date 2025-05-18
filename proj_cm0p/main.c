@@ -43,6 +43,7 @@
 #include "cy_pdl.h"
 #include "cycfg.h"
 #include "cybsp.h"
+#include "cy_retarget_io.h"
 
 #include "ipc_communication.h"
 

@@ -63,8 +63,8 @@ MEMORY
      * Your changes must be aligned with the corresponding memory regions for the CM4 core in 'xx_cm4_dual.ld',
      * where 'xx' is the device group; for example, 'cy8c6xx7_cm4_dual.ld'.
      */
-    ram               (rwx)   : ORIGIN = 0x08000000, LENGTH = 0x2000
-    flash             (rx)    : ORIGIN = 0x10000000, LENGTH = 0x4400
+    ram               (rwx)   : ORIGIN = 0x08000000, LENGTH = 0x4000
+    flash             (rx)    : ORIGIN = 0x10000000, LENGTH = 0x9000
 
 
     /* This is an unprotected public RAM region, with the placed .cy_sharedmem.
