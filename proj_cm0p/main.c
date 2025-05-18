@@ -53,7 +53,13 @@
 #define SEND_IPC_MSG(x) ipc_msg.cmd = x; \
                         Cy_IPC_Pipe_SendMessage(USER_IPC_PIPE_EP_ADDR_CM4, \
                                                 USER_IPC_PIPE_EP_ADDR_CM0, \
-                                                (void *) &ipc_msg, 0);  
+                                                (void *) &ipc_msg, 0);
+
+#define CYBSP_PIEZO_0_PORT (CYHAL_GET_PORTADDR(P9_0))
+#define CYBSP_PIEZO_0_PIN   CYHAL_GET_PIN(P9_0)
+
+#define CYBSP_PIEZO_1_PORT      CYHAL_GET_PORTADDR(P9_1)
+#define CYBSP_PIEZO_1_PIN       CYHAL_GET_PIN(P9_1)
 
 static volatile uint8_t msg_cmd = 0;
 
@@ -67,6 +73,23 @@ static ipc_msg_t ipc_msg = {              /* IPC structure to be sent to CM4  */
 
 static void cm0p_msg_callback(uint32_t *msg);
 
+void sendBurst(uint8_t length)
+{
+    SEND_IPC_MSG(IPC_START_S);
+
+    for (uint8_t i = 0; i < length; i++)
+    {
+        Cy_SysLib_DelayUs(12);
+        Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 1UL);
+        Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 0UL);
+
+        Cy_SysLib_DelayUs(12);
+        Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 0UL);
+        Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 1UL);
+    }
+    
+}
+
 int main(void)
 {
     /* Enable global interrupts */
@@ -78,12 +101,6 @@ int main(void)
     setup_ipc_communication_cm0();
     
     cy_rslt_t result;
-
-    GPIO_PRT_Type *CYBSP_PIEZO_0_PORT = CYHAL_GET_PORTADDR(P9_0);
-    uint8_t CYBSP_PIEZO_0_PIN = CYHAL_GET_PIN(P9_0);
-
-    GPIO_PRT_Type *CYBSP_PIEZO_1_PORT = CYHAL_GET_PORTADDR(P9_1);
-    uint8_t CYBSP_PIEZO_1_PIN = CYHAL_GET_PIN(P9_1);
 
     /* Initialize the device and board peripherals */
     result = cybsp_init() ;
@@ -99,22 +116,10 @@ int main(void)
     Cy_GPIO_Pin_FastInit(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, CY_GPIO_DM_STRONG, 0UL, HSIOM_SEL_GPIO);
 
 
-    msg_cmd = IPC_END_R;
     for (;;)
     {
-        switch (msg_cmd) {
-            case IPC_END_R:
-                SEND_IPC_MSG(IPC_START_S);
-                Cy_SysLib_DelayUs(25);
-                Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 1UL);
-                Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 0UL);
-
-                Cy_SysLib_DelayUs(25);
-                Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 0UL);
-                Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 1UL);
-                msg_cmd = 0;
-                break;
-        }
+        sendBurst(5);
+        Cy_SysLib_Delay(100);
     }
 }
 

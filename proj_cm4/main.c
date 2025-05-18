@@ -77,7 +77,7 @@ static ipc_msg_t ipc_msg = {
 /* Volume ratio for noise and print purposes */
 #define VOLUME_RATIO                (4*FRAME_SIZE)
 /* Desired sample rate. Typical values: 8/16/22.05/32/44.1/48kHz */
-#define SAMPLE_RATE_HZ              8000u
+#define SAMPLE_RATE_HZ              96000u
 /* Decimation Rate of the PDM/PCM block. Typical value is 64 */
 #define DECIMATION_RATE             64u
 /* Audio Subsystem Clock. Typical values depends on the desire sample rate:
@@ -87,6 +87,8 @@ static ipc_msg_t ipc_msg = {
 /* PDM/PCM Pins */
 #define PDM_DATA                    P10_5
 #define PDM_CLK                     P10_4
+
+#define FFT_SIZE 1024
 
 /*******************************************************************************
 * Function Prototypes
@@ -150,6 +152,13 @@ static void cm4_msg_callback(uint32_t *msg)
     }   
 }
 
+void print_array(const float32_t *array) {
+    for (int i = 0; i < FFT_SIZE; i++) {
+        printf("%f\n", array[i]);
+    }
+    printf("\n\n\n");
+}
+
 /*******************************************************************************
 * Function Name: main
 ********************************************************************************
@@ -211,15 +220,19 @@ int main(void)
     cyhal_pdm_pcm_enable_event(&pdm_pcm, CYHAL_PDM_PCM_ASYNC_COMPLETE, CYHAL_ISR_PRIORITY_DEFAULT, true);
     cyhal_pdm_pcm_start(&pdm_pcm);
 
-    // for testing
-    SEND_IPC_MSG(3);
+    float32_t volume_array[FFT_SIZE] = {0};
 
+    int v_index = 0;
+
+    arm_rfft_fast_instance_f32 rfft_instance;
+    arm_rfft_fast_init_f32(&rfft_instance, FFT_SIZE);
+
+    float32_t results[FFT_SIZE] = {0};
     for(;;)
     {
-        switch (msg_cmd) {
-            case IPC_START_S:
-
-                printf("LISTENING TO BEEP");
+        
+        // switch (msg_cmd) {
+            // case IPC_START_S:
                 /* Check if any microphone has data to process */
                 if (pdm_pcm_flag)
                 {
@@ -236,22 +249,35 @@ int main(void)
                         volume += abs(audio_frame[index]);
                     }
 
-                    /* Prepare line to report the volume */
-                    printf("\n\r");
-
                     /* Report the volume */
                     printf("Volume: %lu\n", volume);
 
                     /* Setup to read the next frame */
                     cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
 
+                    volume_array[v_index] = (float32_t) volume;
+
+
+
+                    // Copy input so FFT doesn't modify original
+                    float32_t temp_input[FFT_SIZE];
+                    memcpy(temp_input, volume_array, sizeof(temp_input));
+
+                    arm_rfft_fast_f32(&rfft_instance, temp_input, results, 1);
+
+                    // print_array(volume_array);
+                    print_array(results);
+
                     // SEND_IPC_MSG(IPC_END_R);
+                    v_index++;
+
+                    if (v_index >= FFT_SIZE) v_index = 0;
                 }
 
                 /* Reset the noise threshold if User Button is pressed */
 
                 cyhal_syspm_sleep();
-        }
+        // }
 
 
         msg_cmd = 0;
