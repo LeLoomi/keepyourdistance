@@ -146,7 +146,7 @@ static void cm4_msg_callback(uint32_t *msg)
         ipc_recv_msg = (ipc_msg_t *) msg;
 
         msg_cmd = ipc_recv_msg->cmd;
-        
+
     }   
 }
 
@@ -216,7 +216,6 @@ int main(void)
 
     for(;;)
     {
-        printf("TWO %d\n", msg_cmd);
         switch (msg_cmd) {
             case IPC_START_S:
 
