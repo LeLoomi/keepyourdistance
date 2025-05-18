@@ -145,6 +145,8 @@ static void cm4_msg_callback(uint32_t *msg)
         ipc_recv_msg = (ipc_msg_t *) msg;
 
         msg_cmd = ipc_recv_msg->cmd;
+
+        printf("RECEIVED MSG");
     }   
 }
 
