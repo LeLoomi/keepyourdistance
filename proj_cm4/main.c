@@ -49,7 +49,14 @@
 #include "ipc_communication.h"
 
 
+#define SEND_IPC_MSG(x) ipc_msg.cmd = x; \
+                        Cy_IPC_Pipe_SendMessage(USER_IPC_PIPE_EP_ADDR_CM0, \
+                                                USER_IPC_PIPE_EP_ADDR_CM4, \
+                                                (void *) &ipc_msg, 0); 
+
 static void cm4_msg_callback(uint32_t *msg);
+
+static volatile uint8_t msg_cmd = 0;
 
 /* IPC structure to be sent to CM0+ */
 static ipc_msg_t ipc_msg = {
@@ -137,11 +144,7 @@ static void cm4_msg_callback(uint32_t *msg)
         /* Cast received message to the IPC message structure */
         ipc_recv_msg = (ipc_msg_t *) msg;
 
-        /* Extract the message value */
-        msg_value = ipc_recv_msg->value;
-
-        /* Set message flag */
-        msg_flag = true;
+        msg_cmd = ipc_recv_msg->cmd;
     }   
 }
 
@@ -172,10 +175,14 @@ int main(void)
 
     setup_ipc_communication_cm4();
 
-        /* Register the Message Callback */
+    /* Register the Message Callback */
     ipc_status = Cy_IPC_Pipe_RegisterCallback(USER_IPC_PIPE_EP_ADDR,
                     cm4_msg_callback,
-                    IPC_CM0_TO_CM4_CLIENT_ID);  
+                    IPC_CM0_TO_CM4_CLIENT_ID); 
+    if (ipc_status != CY_IPC_PIPE_SUCCESS)
+    {
+        CY_ASSERT(0);
+    } 
 
     /* Initialize the device and board peripherals */
     result = cybsp_init() ;
@@ -211,35 +218,43 @@ int main(void)
 
     for(;;)
     {
-        /* Check if any microphone has data to process */
-        if (pdm_pcm_flag)
-        {
-            /* Clear the PDM/PCM flag */
-            pdm_pcm_flag = 0;
 
-            /* Reset the volume */
-            volume = 0;
+        switch (msg_cmd) {
+            case IPC_START_S:
+                /* Check if any microphone has data to process */
+                if (pdm_pcm_flag)
+                {
+                    /* Clear the PDM/PCM flag */
+                    pdm_pcm_flag = 0;
 
-            /* Calculate the volume by summing the absolute value of all the 
-             * audio data from a frame */
-            for (uint32_t index = 0; index < FRAME_SIZE; index++)
-            {
-                volume += abs(audio_frame[index]);
-            }
+                    /* Reset the volume */
+                    volume = 0;
 
-            /* Prepare line to report the volume */
-            printf("\n\r");
+                    /* Calculate the volume by summing the absolute value of all the 
+                    * audio data from a frame */
+                    for (uint32_t index = 0; index < FRAME_SIZE; index++)
+                    {
+                        volume += abs(audio_frame[index]);
+                    }
 
-            /* Report the volume */
-            printf("Volume: %lu\n", volume);
+                    /* Prepare line to report the volume */
+                    printf("\n\r");
 
-            /* Setup to read the next frame */
-            cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
+                    /* Report the volume */
+                    printf("Volume: %lu\n", volume);
+
+                    /* Setup to read the next frame */
+                    cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
+
+                    // SEND_IPC_MSG(IPC_END_R);
+                }
+
+                /* Reset the noise threshold if User Button is pressed */
+
+                cyhal_syspm_sleep();
         }
 
-        /* Reset the noise threshold if User Button is pressed */
 
-        cyhal_syspm_sleep();
 
     }
 }

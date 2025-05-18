@@ -93,6 +93,11 @@
 #define IPC_CM0_TO_CM4_CLIENT_ID        (1U)
 #define IPC_CM4_TO_CM0_CLIENT_ID        (2U)
 
+// commands for our ipc between echo sender (cm0p) and echo receiver (cm4)
+
+#define IPC_START_S                         0x01
+#define IPC_END_R                           0x02
+
 #define IPC_CMD_INIT                    0x81
 #define IPC_CMD_START                   0x82
 #define IPC_CMD_STOP                    0x83

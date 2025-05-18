@@ -50,8 +50,8 @@
 #define CYHAL_GET_PORT(pin)         ((uint8_t)(((uint8_t)pin) >> 3U))
 
 #define SEND_IPC_MSG(x) ipc_msg.cmd = x; \
-                        Cy_IPC_Pipe_SendMessage(USER_IPC_PIPE_EP_ADDR_CM0, \
-                                                USER_IPC_PIPE_EP_ADDR_CM4, \
+                        Cy_IPC_Pipe_SendMessage(USER_IPC_PIPE_EP_ADDR_CM4, \
+                                                USER_IPC_PIPE_EP_ADDR_CM0, \
                                                 (void *) &ipc_msg, 0);  
 
 static volatile uint8_t msg_cmd = 0;
@@ -97,16 +97,22 @@ int main(void)
     Cy_GPIO_Pin_FastInit(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, CY_GPIO_DM_STRONG, 0UL, HSIOM_SEL_GPIO);
     Cy_GPIO_Pin_FastInit(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, CY_GPIO_DM_STRONG, 0UL, HSIOM_SEL_GPIO);
 
+
+    msg_cmd = IPC_END_R;
     for (;;)
     {
-        SEND_IPC_MSG(IPC_CMD_START);
-        Cy_SysLib_DelayUs(25);
-        Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 1UL);
-        Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 0UL);
+        switch (msg_cmd) {
+            case IPC_END_R:
+                Cy_SysLib_DelayUs(25);
+                Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 1UL);
+                Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 0UL);
 
-        Cy_SysLib_DelayUs(25);
-        Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 0UL);
-        Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 1UL);
+                Cy_SysLib_DelayUs(25);
+                Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 0UL);
+                Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 1UL);
+                msg_cmd = 0;
+                break;
+        }
     }
 }
 
