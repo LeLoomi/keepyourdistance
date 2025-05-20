@@ -90,7 +90,7 @@ static ipc_msg_t ipc_msg = {
 
 #define FFT_SIZE 1024
 
-#define FFT_CLOCK_HZ                24576000u   //10mHz
+#define FFT_TIMER_HZ                10000000u   // 10 mHz
 
 /*******************************************************************************
 * Function Prototypes
@@ -225,19 +225,14 @@ int main(void)
     /* Initialize retarget-io to use the debug UART port */
     cy_retarget_io_init(CYBSP_DEBUG_UART_TX, CYBSP_DEBUG_UART_RX, CY_RETARGET_IO_BAUDRATE);
 
-    /* Initialize the User LED */
-    // cyhal_gpio_init(CYBSP_USER_LED, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
-
     /* Initialize the PDM/PCM block */
     cyhal_pdm_pcm_init(&pdm_pcm, PDM_DATA, PDM_CLK, &audio_clock, &pdm_pcm_cfg);
     cyhal_pdm_pcm_register_callback(&pdm_pcm, pdm_pcm_isr_handler, NULL);
     cyhal_pdm_pcm_enable_event(&pdm_pcm, CYHAL_PDM_PCM_ASYNC_COMPLETE, CYHAL_ISR_PRIORITY_DEFAULT, true);
     cyhal_pdm_pcm_start(&pdm_pcm);
 
-    /* initialize clock for the fft timing */
-    clock_init_fft();
 
-    // Initialize the timer with fft_clock as the source
+    // Initialize the sync timer
     result = cyhal_timer_init(&fft_timer, NC, NULL);
     if (result != CY_RSLT_SUCCESS)
     {
@@ -295,7 +290,9 @@ int main(void)
 
                     arm_rfft_fast_f32(&rfft_instance, temp_input, results, 1);
 
-                    print_fft_results(results);
+                    //print_fft_results(results);
+
+                    printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
 
                     // SEND_IPC_MSG(IPC_END_R);
                     v_index++;
@@ -325,32 +322,6 @@ void pdm_pcm_isr_handler(void *arg, cyhal_pdm_pcm_event_t event)
     (void) event;
 
     pdm_pcm_flag = true;
-}
-
-void clock_init_fft(void)
-{
-    /* Reserve a high-frequency clock (e.g., CLK_HF[2]) for FFT/timing */
-    cy_rslt_t result = cyhal_clock_reserve(&fft_clock, &CYHAL_CLOCK_PLL[1]);
-    if (result != CY_RSLT_SUCCESS)
-    {
-        printf("Reserve failed");
-        CY_ASSERT(0);
-    }
-
-    /* Optionally set frequency if needed */
-    result = cyhal_clock_set_frequency(&fft_clock, FFT_CLOCK_HZ, NULL); // 10 MHz example
-        if (result != CY_RSLT_SUCCESS)
-    {
-        printf("Set freq failed");
-        CY_ASSERT(0);
-    }
-
-    result = cyhal_clock_set_enabled(&fft_clock, true, true);
-        if (result != CY_RSLT_SUCCESS)
-    {
-        printf("Set enabled failed");
-        CY_ASSERT(0);
-    }
 }
 
 /*******************************************************************************
