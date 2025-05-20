@@ -44,6 +44,7 @@
 #include "cybsp.h"
 #include "cy_retarget_io.h"
 #include "COMPONENT_CMSIS_DSP/Include/dsp/transform_functions.h"
+#include "COMPONENT_CMSIS_DSP/Include/dsp/statistics_functions.h"
 
 #include "stdlib.h"
 
@@ -171,6 +172,7 @@ void print_fft_results(const float32_t *array) {
         printf("%f\n", fabsf(array[i]));
     }
     printf("\n\n\n");
+
 }
 
 /*******************************************************************************
@@ -280,19 +282,33 @@ int main(void)
 
                     /* Setup to read the next frame */
                     cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
-
+                    
                     // Copy input so FFT doesn't modify original
-                    float32_t temp_input[FFT_SIZE] = {0};
+                    float32_t audio_frame_f32[FFT_SIZE] = {0};
                     for (size_t i = 0; i < FFT_SIZE; i++)
                     {
-                        temp_input[i] = (float32_t)audio_frame[i];
+                        audio_frame_f32[i] = (float32_t)audio_frame[i];
                     }
 
-                    arm_rfft_fast_f32(&rfft_instance, temp_input, results, 1);
+                    uint32_t p_min_index;
+                    float32_t min_audio; 
+                    arm_min_f32(audio_frame_f32, FFT_SIZE, &min_audio, &p_min_index);
 
-                    //print_fft_results(results);
+                    uint32_t p_max_index;
+                    float32_t max_audio; 
+                    arm_max_f32(audio_frame_f32, FFT_SIZE, &max_audio, &p_max_index);
 
-                    printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
+                    if (max_audio != min_audio) { 
+                        for (int i = 0; i < FFT_SIZE; i++) {
+                            audio_frame_f32[i] = audio_frame_f32[i] / (max_audio - min_audio);
+                        }
+                    }
+
+                    arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, results, 0);
+
+                    print_fft_results(results);
+
+                    // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
 
                     // SEND_IPC_MSG(IPC_END_R);
                     v_index++;
