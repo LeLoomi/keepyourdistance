@@ -4,7 +4,7 @@
 * Description: This is the source code for the PDM PCM Example
 *              for ModusToolbox.
 *
-* Related Document: See README.md 
+* Related Document: See README.md
 *
 *
 *******************************************************************************
@@ -47,6 +47,7 @@
 #include "COMPONENT_CMSIS_DSP/Include/dsp/statistics_functions.h"
 
 #include "stdlib.h"
+#include "assert.h"
 
 #include "ipc_communication.h"
 
@@ -54,7 +55,7 @@
 #define SEND_IPC_MSG(x) ipc_msg.cmd = x; \
                         Cy_IPC_Pipe_SendMessage(USER_IPC_PIPE_EP_ADDR_CM0, \
                                                 USER_IPC_PIPE_EP_ADDR_CM4, \
-                                                (void *) &ipc_msg, 0); 
+                                                (void *) &ipc_msg, 0);
 
 static void cm4_msg_callback(uint32_t *msg);
 
@@ -89,9 +90,13 @@ static ipc_msg_t ipc_msg = {
 #define PDM_DATA                    P10_5
 #define PDM_CLK                     P10_4
 
-#define FFT_SIZE 1024
+#define FFT_SIZE                    1024
+
+#define AMPLITUDE_SIZE              FFT_SIZE/2
 
 #define FFT_TIMER_HZ                10000000u   // 10 mHz
+
+#define BANDWIDTH_HZ                3000u       // 3 kHz
 
 /*******************************************************************************
 * Function Prototypes
@@ -125,11 +130,11 @@ cyhal_timer_cfg_t timer_cfg = {
 };
 
 /* HAL Config */
-const cyhal_pdm_pcm_cfg_t pdm_pcm_cfg = 
+const cyhal_pdm_pcm_cfg_t pdm_pcm_cfg =
 {
     .sample_rate     = SAMPLE_RATE_HZ,
     .decimation_rate = DECIMATION_RATE,
-    .mode            = CYHAL_PDM_PCM_MODE_STEREO, 
+    .mode            = CYHAL_PDM_PCM_MODE_STEREO,
     .word_length     = 16,  /* bits */
     .left_gain       = 0,   /* dB */
     .right_gain      = 0,   /* dB */
@@ -138,8 +143,6 @@ const cyhal_pdm_pcm_cfg_t pdm_pcm_cfg =
 /* Message variables */
 static volatile bool msg_flag = false;
 static volatile uint32_t msg_value;
-static volatile uint32_t button_flag;
-static volatile bool button_pressed = false;
 static volatile uint32_t start_tick;
 
 /*******************************************************************************
@@ -164,15 +167,69 @@ static void cm4_msg_callback(uint32_t *msg)
 
         msg_cmd = ipc_recv_msg->cmd;
 
-    }   
+    }
 }
 
-void print_fft_results(const float32_t *array) {
+static void print_fft_results(const float32_t *array) {
     for (int i = 1; i < FFT_SIZE; i+=2) {
         printf("%f\n", fabs(array[i]));
     }
+    printf("%f\n", fabs(array[1]));
     printf("\n\n\n");
+}
 
+
+static void filter_fft(const float32_t *amplitudes, uint32_t bandwidth, uint32_t sample_rate, float32_t *buffer) {
+    // TODO
+}
+
+/**
+ * @brief Converts the fft_results containing signed amplitudes and frequencies to
+ * absolute amplitudes only
+ *
+ * @param[in]   fft_results  Array of amplitudes and phases
+ * @param[out]  amplitudes   Is filled with only amplitudes, it must have half of the capacity of fft_results
+ *
+ * @note The FFT documentation states: The implementation is using a trick so that the output
+ * buffer can be N float : the last real is packaged in the imaginary part of the first
+ * complex (since this imaginary part is not used and is zero).
+ */
+static void convert_to_amplitudes(const float32_t *fft_results, float32_t *amplitudes) {
+    for (size_t i = 2; i < FFT_SIZE; i += 2) {
+        amplitudes[i] = fabs(fft_results[i]);
+    }
+
+    // the last real is packaged in the imaginary part of the first complex (since this imaginary part is not used and is zero).
+    amplitudes[FFT_SIZE/2 - 1] = fabs(fft_results[1]);
+
+    // ftt_results[0] is the DC
+}
+
+/**
+ * @brief Get the frequency by the index
+ *
+ * @param[in] index
+ * @param[in] sample_rate
+ *
+ * @return Frequency for the selected index
+ */
+static inline float32_t get_frequency_by_index(uint32_t index, uint32_t sample_rate) {
+    assert(index < FFT_SIZE/2);
+    return (float32_t) index * sample_rate / (float32_t) (FFT_SIZE/2);
+}
+
+/**
+ * @brief Get the index by frequency
+ *
+ * @param[in] frequency
+ * @param[in] sample_rate
+ *
+ * @return Index for the selected frequency
+ */
+static inline float32_t get_index_by_frequency(uint32_t frequency, uint32_t sample_rate) {
+    assert(frequency <= SAMPLE_RATE_HZ);
+    assert(frequency >= 0);
+    return (float32_t) (FFT_SIZE/2) * frequency / (float32_t) sample_rate;
 }
 
 /*******************************************************************************
@@ -205,11 +262,11 @@ int main(void)
     /* Register the Message Callback */
     ipc_status = Cy_IPC_Pipe_RegisterCallback(USER_IPC_PIPE_EP_ADDR,
                     cm4_msg_callback,
-                    IPC_CM0_TO_CM4_CLIENT_ID); 
+                    IPC_CM0_TO_CM4_CLIENT_ID);
     if (ipc_status != CY_IPC_PIPE_SUCCESS)
     {
         CY_ASSERT(0);
-    } 
+    }
 
     /* Initialize the device and board peripherals */
     result = cybsp_init() ;
@@ -282,7 +339,7 @@ int main(void)
 
                     /* Setup to read the next frame */
                     cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
-                    
+
                     // Copy input so FFT doesn't modify original
                     float32_t audio_frame_f32[FFT_SIZE] = {0};
                     for (size_t i = 0; i < FFT_SIZE; i++)
@@ -291,20 +348,23 @@ int main(void)
                     }
 
                     uint32_t p_min_index;
-                    float32_t min_audio; 
+                    float32_t min_audio;
                     arm_min_f32(audio_frame_f32, FFT_SIZE, &min_audio, &p_min_index);
 
                     uint32_t p_max_index;
-                    float32_t max_audio; 
+                    float32_t max_audio;
                     arm_max_f32(audio_frame_f32, FFT_SIZE, &max_audio, &p_max_index);
 
-                    if (max_audio != min_audio) { 
+                    if (max_audio != min_audio) {
                         for (int i = 0; i < FFT_SIZE; i++) {
                             audio_frame_f32[i] = audio_frame_f32[i] / (max_audio - min_audio);
                         }
                     }
 
                     arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, results, 0);
+
+                    float32_t amplitudes[FFT_SIZE/2];
+                    convert_to_amplitudes(results, amplitudes);
 
                     print_fft_results(results);
 
@@ -354,7 +414,7 @@ void clock_init(void)
     cyhal_clock_set_frequency(&pll_clock, AUDIO_SYS_CLOCK_HZ, NULL);
     cyhal_clock_set_enabled(&pll_clock, true, true);
 
-    /* Initialize the audio subsystem clock (CLK_HF[1]) 
+    /* Initialize the audio subsystem clock (CLK_HF[1])
      * The CLK_HF[1] is the root clock for the I2S and PDM/PCM blocks */
     cyhal_clock_reserve(&audio_clock, &CYHAL_CLOCK_HF[1]);
 
