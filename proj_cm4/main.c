@@ -90,6 +90,8 @@ static ipc_msg_t ipc_msg = {
 
 #define FFT_SIZE 1024
 
+#define FFT_CLOCK_HZ                24576000u   //10mHz
+
 /*******************************************************************************
 * Function Prototypes
 ********************************************************************************/
@@ -164,9 +166,9 @@ static void cm4_msg_callback(uint32_t *msg)
     }   
 }
 
-void print_array(const float32_t *array) {
+void print_fft_results(const float32_t *array) {
     for (int i = 0; i < FFT_SIZE; i++) {
-        printf("%f\n", array[i]);
+        printf("%f\n", fabsf(array[i]));
     }
     printf("\n\n\n");
 }
@@ -274,7 +276,7 @@ int main(void)
     {
         switch (msg_cmd) {
             case IPC_START_S:
-            printf("START_S");
+            printf("START_S\n");
                             /* Check if any microphone has data to process */
                 if (pdm_pcm_flag)
                 {
@@ -309,7 +311,7 @@ int main(void)
 
                     arm_rfft_fast_f32(&rfft_instance, temp_input, results, 1);
 
-                    print_array(results);
+                    print_fft_results(results);
                     
 
                     // SEND_IPC_MSG(IPC_END_R);
@@ -351,7 +353,7 @@ void pdm_pcm_isr_handler(void *arg, cyhal_pdm_pcm_event_t event)
 void clock_init_fft(void)
 {
     /* Reserve a high-frequency clock (e.g., CLK_HF[2]) for FFT/timing */
-    cy_rslt_t result = cyhal_clock_reserve(&fft_clock, &CYHAL_CLOCK_HF[2]);
+    cy_rslt_t result = cyhal_clock_reserve(&fft_clock, &CYHAL_CLOCK_PLL[1]);
     if (result != CY_RSLT_SUCCESS)
     {
         printf("Reserve failed");
@@ -359,7 +361,7 @@ void clock_init_fft(void)
     }
 
     /* Optionally set frequency if needed */
-    //result = cyhal_clock_set_frequency(&fft_clock, AUDIO_SYS_CLOCK_HZ, NULL); // 10 MHz example
+    result = cyhal_clock_set_frequency(&fft_clock, FFT_CLOCK_HZ, NULL); // 10 MHz example
         if (result != CY_RSLT_SUCCESS)
     {
         printf("Set freq failed");
