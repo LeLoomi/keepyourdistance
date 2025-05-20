@@ -104,7 +104,6 @@ void clock_init_fft(void);
 volatile bool pdm_pcm_flag = true;
 
 /* Volume variables */
-uint32_t volume = 0;
 uint32_t noise_threshold = THRESHOLD_HYSTERESIS;
 
 /* HAL Object */
@@ -242,8 +241,6 @@ int main(void)
     cyhal_timer_set_frequency(&fft_timer, 10000000); // Match fft_clock frequency (10 MHz)
     cyhal_timer_start(&fft_timer);
 
-    float32_t volume_array[FFT_SIZE] = {0};
-
     int v_index = 0;
 
     arm_rfft_fast_instance_f32 rfft_instance;
@@ -251,47 +248,49 @@ int main(void)
 
     float32_t results[FFT_SIZE] = {0};
     // uint32_t result_ticks[FFT_SIZE] = {0};
+    Cy_SysLib_Delay(100);
     for(;;)
     {
-        
         switch (msg_cmd) {
             case IPC_START_S:
-            printf("START_S");
+                printf("START_S");
                 /* Check if any microphone has data to process */
                 if (pdm_pcm_flag)
                 {
                     /* Clear the PDM/PCM flag */
                     pdm_pcm_flag = 0;
 
-                    /* Reset the volume */
-                    volume = 0;
-
                     /* Calculate the volume by summing the absolute value of all the 
                     * audio data from a frame */
-                    for (uint32_t index = 0; index < FRAME_SIZE; index++)
+                    /*for (uint32_t index = 0; index < FRAME_SIZE; index++)
                     {
                         volume += abs(audio_frame[index]);
-                    }
+                    }*/
 
             /* Report the volume */
-            printf("Volume: %lu\n", volume);
+            //printf("Volume: %lu\n", volume);
 
                     /* Setup to read the next frame */
                     cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
 
-                    volume_array[v_index] = (float32_t) volume;
+                    //volume_array[v_index] = (float32_t) volume;
 
 
 
                     // Copy input so FFT doesn't modify original
-                    /* float32_t temp_input[FFT_SIZE];
-                    memcpy(temp_input, volume_array, sizeof(temp_input));
+                    float32_t temp_input[FFT_SIZE] = {0};
+                    for (size_t i = 0; i < FFT_SIZE; i++)
+                    {
+                        temp_input[i] = (float32_t)audio_frame[i];
+                    }
+                    
+                    //memcpy(temp_input, audio_frame, sizeof(temp_input));
 
                     arm_rfft_fast_f32(&rfft_instance, temp_input, results, 1);
 
-                    print_array(volume_array);
+                    print_array(audio_frame);
                     print_array(results);
-                    */
+                    
 
                     // SEND_IPC_MSG(IPC_END_R);
                     v_index++;
@@ -301,7 +300,7 @@ int main(void)
 
                 /* Reset the noise threshold if User Button is pressed */
 
-                cyhal_syspm_sleep();
+                //cyhal_syspm_sleep();
         // }
 
 
