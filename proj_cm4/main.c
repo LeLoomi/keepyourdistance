@@ -271,34 +271,20 @@ int main(void)
 
     float32_t results[FFT_SIZE] = {0};
     // uint32_t result_ticks[FFT_SIZE] = {0};
-    Cy_SysLib_Delay(100);
+
     for(;;)
     {
         switch (msg_cmd) {
             case IPC_START_S:
             printf("START_S\n");
-                            /* Check if any microphone has data to process */
+                /* Check if any microphone has data to process */
                 if (pdm_pcm_flag)
                 {
                     /* Clear the PDM/PCM flag */
                     pdm_pcm_flag = 0;
 
-                    /* Calculate the volume by summing the absolute value of all the 
-                    * audio data from a frame */
-                    /*for (uint32_t index = 0; index < FRAME_SIZE; index++)
-                    {
-                        volume += abs(audio_frame[index]);
-                    }*/
-
-                    /* Report the volume */
-                    //printf("Volume: %lu\n", volume);
-
                     /* Setup to read the next frame */
                     cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
-
-                    //volume_array[v_index] = (float32_t) volume;
-
-
 
                     // Copy input so FFT doesn't modify original
                     float32_t temp_input[FFT_SIZE] = {0};
@@ -306,13 +292,10 @@ int main(void)
                     {
                         temp_input[i] = (float32_t)audio_frame[i];
                     }
-                    
-                    //memcpy(temp_input, audio_frame, sizeof(temp_input));
 
                     arm_rfft_fast_f32(&rfft_instance, temp_input, results, 1);
 
                     print_fft_results(results);
-                    
 
                     // SEND_IPC_MSG(IPC_END_R);
                     v_index++;
@@ -320,15 +303,9 @@ int main(void)
                     if (v_index >= FFT_SIZE) v_index = 0;
                 }
 
-                /* Reset the noise threshold if User Button is pressed */
-
-                //cyhal_syspm_sleep();
-        // }
-
-
         msg_cmd = 0;
+        }
     }
-}
 }
 
 /*******************************************************************************
