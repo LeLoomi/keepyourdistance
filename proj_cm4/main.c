@@ -168,8 +168,8 @@ static void cm4_msg_callback(uint32_t *msg)
 }
 
 void print_fft_results(const float32_t *array) {
-    for (int i = 0; i < FFT_SIZE; i++) {
-        printf("%f\n", fabsf(array[i]));
+    for (int i = 1; i < FFT_SIZE; i+=2) {
+        printf("%f\n", fabs(array[i]));
     }
     printf("\n\n\n");
 
