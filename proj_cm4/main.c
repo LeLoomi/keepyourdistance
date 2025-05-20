@@ -236,10 +236,31 @@ int main(void)
     clock_init_fft();
 
     // Initialize the timer with fft_clock as the source
-    cyhal_timer_init(&fft_timer, NC, NULL);
-    cyhal_timer_configure(&fft_timer, &timer_cfg);
-    cyhal_timer_set_frequency(&fft_timer, 10000000); // Match fft_clock frequency (10 MHz)
-    cyhal_timer_start(&fft_timer);
+    result = cyhal_timer_init(&fft_timer, NC, NULL);
+    if (result != CY_RSLT_SUCCESS)
+    {
+        printf("Timer init failed");
+        CY_ASSERT(0);
+    }
+
+    result = cyhal_timer_configure(&fft_timer, &timer_cfg);
+        if (result != CY_RSLT_SUCCESS)
+    {
+        printf("Timer configure failed");
+        CY_ASSERT(0);
+    }
+    result = cyhal_timer_set_frequency(&fft_timer, 10000000); // Match fft_clock frequency (10 MHz)
+        if (result != CY_RSLT_SUCCESS)
+    {
+        printf("Timer set freq failed");
+        CY_ASSERT(0);
+    }
+    result = cyhal_timer_start(&fft_timer);
+        if (result != CY_RSLT_SUCCESS)
+    {
+        printf("Timer start failed");
+        CY_ASSERT(0);
+    }
 
     int v_index = 0;
 
@@ -253,8 +274,8 @@ int main(void)
     {
         switch (msg_cmd) {
             case IPC_START_S:
-                printf("START_S");
-                /* Check if any microphone has data to process */
+            printf("START_S");
+                            /* Check if any microphone has data to process */
                 if (pdm_pcm_flag)
                 {
                     /* Clear the PDM/PCM flag */
@@ -267,8 +288,8 @@ int main(void)
                         volume += abs(audio_frame[index]);
                     }*/
 
-            /* Report the volume */
-            //printf("Volume: %lu\n", volume);
+                    /* Report the volume */
+                    //printf("Volume: %lu\n", volume);
 
                     /* Setup to read the next frame */
                     cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
@@ -288,7 +309,6 @@ int main(void)
 
                     arm_rfft_fast_f32(&rfft_instance, temp_input, results, 1);
 
-                    print_array(audio_frame);
                     print_array(results);
                     
 
@@ -331,11 +351,27 @@ void pdm_pcm_isr_handler(void *arg, cyhal_pdm_pcm_event_t event)
 void clock_init_fft(void)
 {
     /* Reserve a high-frequency clock (e.g., CLK_HF[2]) for FFT/timing */
-    cyhal_clock_reserve(&fft_clock, &CYHAL_CLOCK_HF[2]);
+    cy_rslt_t result = cyhal_clock_reserve(&fft_clock, &CYHAL_CLOCK_HF[2]);
+    if (result != CY_RSLT_SUCCESS)
+    {
+        printf("Reserve failed");
+        CY_ASSERT(0);
+    }
 
     /* Optionally set frequency if needed */
-    cyhal_clock_set_frequency(&fft_clock, 10000000, NULL); // 10 MHz example
-    cyhal_clock_set_enabled(&fft_clock, true, true);
+    //result = cyhal_clock_set_frequency(&fft_clock, AUDIO_SYS_CLOCK_HZ, NULL); // 10 MHz example
+        if (result != CY_RSLT_SUCCESS)
+    {
+        printf("Set freq failed");
+        CY_ASSERT(0);
+    }
+
+    result = cyhal_clock_set_enabled(&fft_clock, true, true);
+        if (result != CY_RSLT_SUCCESS)
+    {
+        printf("Set enabled failed");
+        CY_ASSERT(0);
+    }
 }
 
 /*******************************************************************************
