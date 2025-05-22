@@ -170,6 +170,33 @@ static void cm4_msg_callback(uint32_t *msg)
     }
 }
 
+/**
+ * @brief Get the frequency by the index
+ *
+ * @param[in] index
+ * @param[in] sample_rate
+ *
+ * @return Frequency for the selected index
+ */
+static inline float32_t get_frequency_by_index(uint32_t index, uint32_t sample_rate) {
+    assert(index < FFT_SIZE/2);
+    return index * sample_rate / (FFT_SIZE/2);
+}
+
+/**
+ * @brief Get the index by frequency
+ *
+ * @param[in] frequency
+ * @param[in] sample_rate
+ *
+ * @return Index for the selected frequency
+ */
+static inline uint32_t get_index_by_frequency(uint32_t frequency, uint32_t sample_rate) {
+    assert(frequency <= SAMPLE_RATE_HZ);
+    assert(frequency >= 0);
+    return (FFT_SIZE/2) * frequency / sample_rate;
+}
+
 static void print_fft_results(const float32_t *array) {
     for (int i = 1; i < FFT_SIZE; i+=2) {
         printf("%f\n", fabs(array[i]));
@@ -182,13 +209,14 @@ static void print_fft_results(const float32_t *array) {
 static void filter_fft(const float32_t *amplitudes, uint32_t bandwidth, uint32_t sample_rate, uint32_t sent_frequency, 
     float32_t *buffer) {
     // width of one bucket
-    const float32_t bucket_width = (float32_t) sample_rate/(FFT_SIZE/2)
+    const float32_t bucket_width = (float32_t) sample_rate/(FFT_SIZE/2);
 
     // figure out which slot contains the sent frequency, so that we can get the bandwidth around said frequency
     uint32_t bucket_index = get_index_by_frequency(sent_frequency, sample_rate);
 
     // get buckets that are above/below our sent frequency
     // TODO: 
+
 }
 
 /**
@@ -211,33 +239,6 @@ static void convert_to_amplitudes(const float32_t *fft_results, float32_t *ampli
     amplitudes[FFT_SIZE/2 - 1] = fabs(fft_results[1]);
 
     // ftt_results[0] is the DC
-}
-
-/**
- * @brief Get the frequency by the index
- *
- * @param[in] index
- * @param[in] sample_rate
- *
- * @return Frequency for the selected index
- */
-static inline float32_t get_frequency_by_index(uint32_t index, uint32_t sample_rate) {
-    assert(index < FFT_SIZE/2);
-    return index * sample_rate / (FFT_SIZE/2);
-}
-
-/**
- * @brief Get the index by frequency
- *
- * @param[in] frequency
- * @param[in] sample_rate
- *
- * @return Index for the selected frequency
- */
-static inline uin32_t get_index_by_frequency(uint32_t frequency, uint32_t sample_rate) {
-    assert(frequency <= SAMPLE_RATE_HZ);
-    assert(frequency >= 0);
-    return (FFT_SIZE/2) * frequency / sample_rate;
 }
 
 /*******************************************************************************
