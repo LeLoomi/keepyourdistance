@@ -92,6 +92,11 @@ static ipc_msg_t ipc_msg = {
 
 #define FFT_SIZE                    1024
 
+/**
+ * @brief the amount of amplitudes that we get after the FFT.
+ * Because we discard the phases, we get only half the amount of values that were
+ * stored in the original audio frame
+ */
 #define AMPLITUDE_SIZE              FFT_SIZE/2
 
 #define FFT_TIMER_HZ                10000000u   // 10 mHz
@@ -205,18 +210,36 @@ static void print_fft_results(const float32_t *array) {
     printf("\n\n\n");
 }
 
-
-static void filter_fft(const float32_t *amplitudes, uint32_t bandwidth, uint32_t sample_rate, uint32_t sent_frequency, 
-    float32_t *buffer) {
+/**
+ * @brief Filters the FFT amplitudes by using the sent_frequency
+ * 
+ * @note All frequency values outside the bandwidth are set to 0
+ * 
+ * @param[in,out]   amplitudes        Amplitudes to filter
+ * @param[in]       bandwidth         Bandwidth around the sent_frequency
+ * @param[in]       sample_rate       The sample rate of the capturing device
+ * @param[in]       sent_frequency    The frequency of the ultra sonic device
+ */
+static void filter_fft(const float32_t *amplitudes, uint32_t bandwidth, 
+                       uint32_t sample_rate, uint32_t sent_frequency) {
     // width of one bucket
-    const float32_t bucket_width = (float32_t) sample_rate/(FFT_SIZE/2);
+    const uint32_t bucket_width = sample_rate/(AMPLITUDE_SIZE);
 
     // figure out which slot contains the sent frequency, so that we can get the bandwidth around said frequency
     uint32_t bucket_index = get_index_by_frequency(sent_frequency, sample_rate);
 
     // get buckets that are above/below our sent frequency
-    // TODO: 
+    uint32_t r = bandwidth / bucket_width / 2;
 
+    uint32_t upper_index = bucket_index + r;
+    uint32_t lower_index = bucket_index - r;
+
+    for (uint32_t i = 0; i < AMPLITUDE_SIZE; i++) {
+        // set everything to 0 that is outside of our bandwidth
+        if (i < lower_index && i > upper_index) {
+            amplitudes[i] = 0.0f;
+        }
+    }
 }
 
 /**
