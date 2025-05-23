@@ -62,12 +62,12 @@ static void cm4_msg_callback(uint32_t *msg);
 static volatile uint8_t msg_cmd = 0;
 
 /* IPC structure to be sent to CM0+ */
-static ipc_msg_t ipc_msg = {
+/* static ipc_msg_t ipc_msg = {
     .client_id  = IPC_CM4_TO_CM0_CLIENT_ID,
     .cpu_status = 0,
     .intr_mask  = USER_IPC_PIPE_INTR_MASK,
     .cmd        = IPC_CMD_INIT,
-};
+}; */
 
 /*******************************************************************************
 * Macros
@@ -99,9 +99,16 @@ static ipc_msg_t ipc_msg = {
  */
 #define AMPLITUDE_SIZE              FFT_SIZE/2
 
+/**
+ * @brief the FFT provides us with complex numbers, represented by 2 floats
+ */
+#define COMPLEX_SIZE                FFT_SIZE/2
+
 #define FFT_TIMER_HZ                10000000u   // 10 mHz
 
 #define BANDWIDTH_HZ                3000u       // 3 kHz
+
+#define SIGNAL_FREQUENCY_HZ         41600u      // 41.6 kHz
 
 /*******************************************************************************
 * Function Prototypes
@@ -176,6 +183,22 @@ static void cm4_msg_callback(uint32_t *msg)
 }
 
 /**
+ * @brief Used to access and array of complex values containing frequency and phase
+ * 
+ * @note This requires some extra logic as the FFT documentation states: "The implementation is using 
+ * a trick so that the output buffer can be N float : the last real is packaged in the imaginary 
+ * part of the first complex (since this imaginary part is not used and is zero)."
+ * 
+ * @param complex   Array of amplitudes and phases with size FFT_SIZE
+ * @param index     Which amplitude to access, can't be bigger than FFT_SIZE/2 - 1
+ * @return A pointer to the value in the array
+ */
+static inline float32_t* access_amplitude(float32_t *complex, uint32_t index) {
+    assert(index >= 0 && index < COMPLEX_SIZE);
+    return index == (COMPLEX_SIZE - 1) ? &complex[1] : &complex[(index * 2) + 2];
+}
+
+/**
  * @brief Get the frequency by the index
  *
  * @param[in] index
@@ -184,8 +207,8 @@ static void cm4_msg_callback(uint32_t *msg)
  * @return Frequency for the selected index
  */
 static inline float32_t get_frequency_by_index(uint32_t index, uint32_t sample_rate) {
-    assert(index < FFT_SIZE/2);
-    return index * sample_rate / (FFT_SIZE/2);
+    assert(index < COMPLEX_SIZE);
+    return index * sample_rate / COMPLEX_SIZE;
 }
 
 /**
@@ -199,7 +222,7 @@ static inline float32_t get_frequency_by_index(uint32_t index, uint32_t sample_r
 static inline uint32_t get_index_by_frequency(uint32_t frequency, uint32_t sample_rate) {
     assert(frequency <= SAMPLE_RATE_HZ);
     assert(frequency >= 0);
-    return (FFT_SIZE/2) * frequency / sample_rate;
+    return COMPLEX_SIZE * frequency / sample_rate;
 }
 
 static void print_fft_results(const float32_t *array) {
@@ -213,17 +236,18 @@ static void print_fft_results(const float32_t *array) {
 /**
  * @brief Filters the FFT amplitudes by using the sent_frequency
  * 
- * @note All frequency values outside the bandwidth are set to 0
+ * @note All amplitude values belonging to frequencies outside the bandwidth around our
+ * sent_frequency are set to 0. Phases are left untouched.
  * 
- * @param[in,out]   amplitudes        Amplitudes to filter
+ * @param[in,out]   complex           Complex values to filter
  * @param[in]       bandwidth         Bandwidth around the sent_frequency
  * @param[in]       sample_rate       The sample rate of the capturing device
  * @param[in]       sent_frequency    The frequency of the ultra sonic device
  */
-static void filter_fft(const float32_t *amplitudes, uint32_t bandwidth, 
+static void filter_fft(float32_t *complex, uint32_t bandwidth, 
                        uint32_t sample_rate, uint32_t sent_frequency) {
     // width of one bucket
-    const uint32_t bucket_width = sample_rate/(AMPLITUDE_SIZE);
+    const uint32_t bucket_width = sample_rate/COMPLEX_SIZE;
 
     // figure out which slot contains the sent frequency, so that we can get the bandwidth around said frequency
     uint32_t bucket_index = get_index_by_frequency(sent_frequency, sample_rate);
@@ -231,37 +255,31 @@ static void filter_fft(const float32_t *amplitudes, uint32_t bandwidth,
     // get buckets that are above/below our sent frequency
     uint32_t r = bandwidth / bucket_width / 2;
 
-    uint32_t upper_index = bucket_index + r;
-    uint32_t lower_index = bucket_index - r;
+    const uint32_t upper_index = bucket_index + r;
+    const uint32_t lower_index = bucket_index - r;
 
-    for (uint32_t i = 0; i < AMPLITUDE_SIZE; i++) {
+    for (uint32_t i = 0; i < COMPLEX_SIZE; i++) {
         // set everything to 0 that is outside of our bandwidth
         if (i < lower_index && i > upper_index) {
-            amplitudes[i] = 0.0f;
+            *access_amplitude(complex, i) = 0.0f;
         }
     }
 }
 
-/**
- * @brief Converts the fft_results containing signed amplitudes and frequencies to
- * absolute amplitudes only
- *
- * @param[in]   fft_results  Array of amplitudes and phases
- * @param[out]  amplitudes   Is filled with only amplitudes, it must have half of the capacity of fft_results
- *
- * @note The FFT documentation states: The implementation is using a trick so that the output
- * buffer can be N float : the last real is packaged in the imaginary part of the first
- * complex (since this imaginary part is not used and is zero).
- */
-static void convert_to_amplitudes(const float32_t *fft_results, float32_t *amplitudes) {
-    for (size_t i = 2; i < FFT_SIZE; i += 2) {
-        amplitudes[i] = fabs(fft_results[i]);
+static void normalize_audio(float32_t *audio_frame_f32) {
+    uint32_t p_min_index;
+    float32_t min_audio;
+    arm_min_f32(audio_frame_f32, FFT_SIZE, &min_audio, &p_min_index);
+
+    uint32_t p_max_index;
+    float32_t max_audio;
+    arm_max_f32(audio_frame_f32, FFT_SIZE, &max_audio, &p_max_index);
+
+    if (max_audio != min_audio) {
+        for (int i = 0; i < FFT_SIZE; i++) {
+            audio_frame_f32[i] = audio_frame_f32[i] / (max_audio - min_audio);
+        }
     }
-
-    // the last real is packaged in the imaginary part of the first complex (since this imaginary part is not used and is zero).
-    amplitudes[FFT_SIZE/2 - 1] = fabs(fft_results[1]);
-
-    // ftt_results[0] is the DC
 }
 
 /*******************************************************************************
@@ -355,8 +373,9 @@ int main(void)
     arm_rfft_fast_instance_f32 rfft_instance;
     arm_rfft_fast_init_f32(&rfft_instance, FFT_SIZE);
 
-    float32_t results[FFT_SIZE] = {0};
-    // uint32_t result_ticks[FFT_SIZE] = {0};
+    float32_t fft_results[FFT_SIZE] = {0};
+    float32_t ifft_results[FFT_SIZE] = {0};
+    float32_t audio_frame_f32[FFT_SIZE] = {0};
 
     for(;;)
     {
@@ -372,34 +391,26 @@ int main(void)
                     /* Setup to read the next frame */
                     cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
 
-                    // Copy input so FFT doesn't modify original
-                    float32_t audio_frame_f32[FFT_SIZE] = {0};
+                    // Convert to 32-bit float
+
                     for (size_t i = 0; i < FFT_SIZE; i++)
                     {
                         audio_frame_f32[i] = (float32_t)audio_frame[i];
                     }
 
-                    uint32_t p_min_index;
-                    float32_t min_audio;
-                    arm_min_f32(audio_frame_f32, FFT_SIZE, &min_audio, &p_min_index);
+                    normalize_audio(audio_frame_f32);
 
-                    uint32_t p_max_index;
-                    float32_t max_audio;
-                    arm_max_f32(audio_frame_f32, FFT_SIZE, &max_audio, &p_max_index);
+                    // split the signal into its individual frequencies
+                    arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, fft_results, 0);
 
-                    if (max_audio != min_audio) {
-                        for (int i = 0; i < FFT_SIZE; i++) {
-                            audio_frame_f32[i] = audio_frame_f32[i] / (max_audio - min_audio);
-                        }
-                    }
 
-                    arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, results, 0);
+                    // zero all unwanted frequencies
+                    filter_fft(fft_results, BANDWIDTH_HZ, SAMPLE_RATE_HZ, SIGNAL_FREQUENCY_HZ);
 
-                    float32_t amplitudes[FFT_SIZE/2];
-                    convert_to_amplitudes(results, amplitudes);
+                    // do inverse FFT on the filtered signal
+                    arm_rfft_fast_f32(&rfft_instance, fft_results, ifft_results, 1);
 
-                    print_fft_results(results);
-
+                    print_fft_results(ifft_results);
                     // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
 
                     // SEND_IPC_MSG(IPC_END_R);
