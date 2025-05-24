@@ -184,8 +184,8 @@ static void cm4_msg_callback(uint32_t *msg)
 
 // raw rfft filter irfft
 
-static void print_array(const float32_t *array) {
-    for (int i = 0; i < FFT_SIZE; i++) {
+static void print_array(const float32_t *array, uint32_t size) {
+    for (int i = 0; i < size; i++) {
         printf("%f,", array[i]);
     }
     printf("\n");
@@ -453,16 +453,22 @@ int main(void)
                     #ifdef DEBUG
                     // print_arrays(audio_frame_f32_to_print, fft_to_print, filtered_fft_to_print, ifft_results);
                     printf("A,");
-                    print_array(audio_frame_f32_to_print);
+                    print_array(audio_frame_f32_to_print, FFT_SIZE);
 
                     printf("FFT,");
-                    print_array(fft_to_print);
+                    for (int i = 0; i < COMPLEX_SIZE; i++) {
+                        printf("%f,", *access_amplitude(fft_to_print, i));
+                    }
+                    printf("\n");
 
                     printf("FILT,");
-                    print_array(filtered_fft_to_print);
+                    for (int i = 0; i < COMPLEX_SIZE; i++) {
+                        printf("%f,", *access_amplitude(filtered_fft_to_print, i));
+                    }
+                    printf("\n");
 
                     printf("IFFT,");
-                    print_array(ifft_results);
+                    print_array(ifft_results, FFT_SIZE);
                     #endif
                     // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
 
