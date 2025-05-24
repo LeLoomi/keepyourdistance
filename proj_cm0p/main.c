@@ -119,7 +119,7 @@ int main(void)
     for (;;)
     {
         sendBurst(5);
-        Cy_SysLib_Delay(100);
+        // Cy_SysLib_Delay(100);
     }
 }
 
