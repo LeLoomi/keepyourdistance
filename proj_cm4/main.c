@@ -408,7 +408,7 @@ int main(void)
     {
         switch (msg_cmd) {
             case IPC_START_S:
-            printf("START_S\n");
+            printf("\nSTART_S\n");
                 /* Check if any microphone has data to process */
                 if (pdm_pcm_flag)
                 {
@@ -455,19 +455,19 @@ int main(void)
                     printf("A,");
                     print_array(audio_frame_f32_to_print, FFT_SIZE);
 
-                    printf("FFT,");
+                    printf("T,");
                     for (int i = 0; i < COMPLEX_SIZE; i++) {
                         printf("%f,", *access_amplitude(fft_to_print, i));
                     }
                     printf("\n");
 
-                    printf("FILT,");
+                    printf("F,");
                     for (int i = 0; i < COMPLEX_SIZE; i++) {
                         printf("%f,", *access_amplitude(filtered_fft_to_print, i));
                     }
                     printf("\n");
 
-                    printf("IFFT,");
+                    printf("I,");
                     print_array(ifft_results, FFT_SIZE);
                     #endif
                     // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
