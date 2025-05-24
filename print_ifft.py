@@ -11,6 +11,7 @@ import json
 
 # Parameters
 SPEED_OF_SOUND = 343  
+FRAME_LENGTH = 1024
 
 ser = serial.Serial('/dev/tty.usbmodem11203', 115200, timeout=1)
 
@@ -26,8 +27,6 @@ fig, axs = plt.subplots(3, 1, figsize=(12, 8), sharex=False)
 canvas = FigureCanvasTkAgg(fig, master=root)
 canvas.get_tk_widget().pack()
 
-serial_data = []  # globale Liste für empfangene Daten
-
 # Initialize plots 
 axs[0].set_title("Raw 🦕 Signal")
 axs[0].set_ylabel("Amplitude strength normalized")
@@ -41,14 +40,20 @@ axs[2].set_ylabel("Amplitude")
 plt.tight_layout()
 
 def update_plot():
-    global serial_data
+    raw_array = np.zeros(1024)
+    fft_array = np.zeros(1024)
+    filt_array = np.zeros(1024)
+    ifft_array = np.zeros(1024)
 
     while ser.in_waiting:
         try:
             line = ser.readline().decode('utf-8').strip()
             if line:  
-                    data_array = json.loads(line)
-                    print("Received:", data_array)
+                    data_string = str(line)
+                    data_array = np.fromstring(data_string, dtype=str, sep=",")
+
+                    print("Received:", data_string)
+                    print("Received:", len(data_array))
 
                     match data_array[0]: 
                         case 'A':
@@ -67,12 +72,12 @@ def update_plot():
     # raw 🦕 signal
     axs[0].cla()
     axs[0].plot(raw_array, color='blue', linewidth=1)
-    axs[0].set_ylim(0,1)
+    axs[0].set_ylim(-0.1,1)
     
     # FFT Signal 
     axs[1].cla()
     axs[1].plot(fft_array, color='green', linewidth=1)
-    axs[1].set_ylim(0,1)
+    axs[1].set_ylim(-0.1,1)
 
     # FFT Signal 
     axs[2].cla()
