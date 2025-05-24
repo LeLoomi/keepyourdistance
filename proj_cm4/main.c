@@ -434,11 +434,14 @@ int main(void)
                     float32_t filtered_fft_to_print[FFT_SIZE];
 
                     memcpy(&audio_frame_f32_to_print, &audio_frame_f32, FFT_SIZE * sizeof(float32_t));
-                    memcpy(&fft_to_print, &fft_results, FFT_SIZE * sizeof(float32_t));
                     #endif
                     
                     // split the signal into its individual frequencies
                     arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, fft_results, 0);
+
+                    #ifdef DEBUG
+                    memcpy(&fft_to_print, &fft_results, FFT_SIZE * sizeof(float32_t));
+                    #endif
 
                     // zero all unwanted frequencies
                     filter_fft(fft_results, BANDWIDTH_HZ, SAMPLE_RATE_HZ, SIGNAL_FREQUENCY_HZ);
