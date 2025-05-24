@@ -182,6 +182,26 @@ static void cm4_msg_callback(uint32_t *msg)
     }
 }
 
+// raw rfft filter irfft
+
+/**
+ * @brief 
+ * 
+ * @param[in] frames 
+ * @param[in] rfft 
+ * @param[in] irfft 
+ */
+static void print_arrays(const float32_t *frames, const float32_t *rfft, const float32_t* filtered_rfft, const float32_t *irfft) {
+    for (int i = 0; i < FFT_SIZE; i++) {
+        if ( i % 2 == 0) {
+            printf("%f,%f,%f,%f\n", frames[i], rfft[i], filtered_rfft[i], irfft[i]);
+        } else {
+            printf("%f,%f,%f,%f\n", frames[i], 0.0, filtered_rfft[i], irfft[i]);
+        }
+    }
+}
+
+
 /**
  * @brief Used to access and array of complex values containing frequency and phase
  * 
@@ -208,7 +228,7 @@ static inline float32_t* access_amplitude(float32_t *complex, uint32_t index) {
  */
 static inline float32_t get_frequency_by_index(uint32_t index, uint32_t sample_rate) {
     assert(index < COMPLEX_SIZE);
-    return index * sample_rate / COMPLEX_SIZE;
+    return index * (sample_rate/2) / COMPLEX_SIZE;
 }
 
 /**
@@ -222,7 +242,7 @@ static inline float32_t get_frequency_by_index(uint32_t index, uint32_t sample_r
 static inline uint32_t get_index_by_frequency(uint32_t frequency, uint32_t sample_rate) {
     assert(frequency <= SAMPLE_RATE_HZ);
     assert(frequency >= 0);
-    return COMPLEX_SIZE * frequency / sample_rate;
+    return COMPLEX_SIZE * frequency / (sample_rate/2);
 }
 
 static void print_fft_results(const float32_t *array) {
@@ -400,17 +420,32 @@ int main(void)
 
                     normalize_audio(audio_frame_f32);
 
+                    #ifdef DEBUG
+                    // FOR DEBUGGING ONLY
+                    float32_t audio_frame_f32_to_print[FFT_SIZE];
+                    float32_t fft_to_print[FFT_SIZE];
+                    float32_t filtered_fft_to_print[FFT_SIZE];
+
+                    memcpy(&audio_frame_f32_to_print, &audio_frame_f32, FFT_SIZE);
+                    memcpy(&fft_to_print, &fft_results, FFT_SIZE);
+                    #endif
+                    
                     // split the signal into its individual frequencies
                     arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, fft_results, 0);
-
 
                     // zero all unwanted frequencies
                     filter_fft(fft_results, BANDWIDTH_HZ, SAMPLE_RATE_HZ, SIGNAL_FREQUENCY_HZ);
 
+                    #ifdef DEBUG
+                    memcpy(&filtered_fft_to_print, &fft_results, FFT_SIZE);
+                    #endif
+
                     // do inverse FFT on the filtered signal
                     arm_rfft_fast_f32(&rfft_instance, fft_results, ifft_results, 1);
 
-                    print_fft_results(ifft_results);
+                    #ifdef DEBUG
+                    print_arrays(audio_frame_f32_to_print, fft_to_print, filtered_fft_to_print, ifft_results);
+                    #endif
                     // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
 
                     // SEND_IPC_MSG(IPC_END_R);
