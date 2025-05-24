@@ -49,21 +49,24 @@ def update_plot():
         try:
             line = ser.readline().decode('utf-8').strip()
             if line:  
-                    data_string = str(line)
-                    data_array = np.fromstring(data_string, dtype=str, sep=",")
+                    array_type = str(line)[0]
+                    data_string = str(line)[2:]
+                    data_array = np.fromstring(data_string, dtype=float, sep=",")
 
                     print("Received:", data_string)
                     print("Received:", len(data_array))
 
-                    match data_array[0]: 
+                    match array_type: 
                         case 'A':
-                              raw_array = data_array[1]
-                        case 'FFT':
-                              fft_array = data_array[1]
-                        case 'FILT':
-                              filt_array = data_array[1]
-                        case 'IFFT':
-                              ifft_array = data_array[1]
+                              raw_array = data_array[1:]
+                        case 'T':
+                              fft_array = data_array[1:]
+                        case 'F':
+                              filt_array = data_array[1:]
+                        case 'I':
+                              ifft_array = data_array[1:]
+                        case _:
+                              continue
                         
         except Exception as e:
             print(f"Fehler beim Lesen: {e}")
