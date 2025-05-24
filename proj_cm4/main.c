@@ -433,8 +433,8 @@ int main(void)
                     float32_t fft_to_print[FFT_SIZE];
                     float32_t filtered_fft_to_print[FFT_SIZE];
 
-                    memcpy(&audio_frame_f32_to_print, &audio_frame_f32, FFT_SIZE);
-                    memcpy(&fft_to_print, &fft_results, FFT_SIZE);
+                    memcpy(&audio_frame_f32_to_print, &audio_frame_f32, FFT_SIZE * sizeof(float32_t));
+                    memcpy(&fft_to_print, &fft_results, FFT_SIZE * sizeof(float32_t));
                     #endif
                     
                     // split the signal into its individual frequencies
@@ -444,7 +444,7 @@ int main(void)
                     filter_fft(fft_results, BANDWIDTH_HZ, SAMPLE_RATE_HZ, SIGNAL_FREQUENCY_HZ);
 
                     #ifdef DEBUG
-                    memcpy(&filtered_fft_to_print, &fft_results, FFT_SIZE);
+                    memcpy(&filtered_fft_to_print, &fft_results, FFT_SIZE * sizeof(float32_t));
                     #endif
 
                     // do inverse FFT on the filtered signal
