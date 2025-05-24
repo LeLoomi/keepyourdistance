@@ -438,6 +438,7 @@ int main(void)
                     
                     // split the signal into its individual frequencies
                     arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, fft_results, 0);
+                    normalize_audio(fft_results);
 
                     #ifdef DEBUG
                     memcpy(&fft_to_print, &fft_results, FFT_SIZE * sizeof(float32_t));
