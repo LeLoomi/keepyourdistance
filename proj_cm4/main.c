@@ -438,6 +438,10 @@ int main(void)
                     
                     // split the signal into its individual frequencies
                     arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, fft_results, 0);
+
+                    for (int i = 0; i < FFT_SIZE; i++) {
+                        fft_results[i] = fabs(fft_results[i]);
+                    }
                     normalize_audio(fft_results);
 
                     #ifdef DEBUG
