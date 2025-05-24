@@ -184,6 +184,13 @@ static void cm4_msg_callback(uint32_t *msg)
 
 // raw rfft filter irfft
 
+static void print_array(const float32_t *array) {
+    for (int i = 0; i < FFT_SIZE; i++) {
+        printf("%f,", array[i]);
+    }
+    printf("\n");
+}
+
 /**
  * @brief 
  * 
@@ -245,13 +252,13 @@ static inline uint32_t get_index_by_frequency(uint32_t frequency, uint32_t sampl
     return COMPLEX_SIZE * frequency / (sample_rate/2);
 }
 
-static void print_fft_results(const float32_t *array) {
+/* static void print_fft_results(const float32_t *array) {
     for (int i = 1; i < FFT_SIZE; i+=2) {
         printf("%f\n", fabs(array[i]));
     }
     printf("%f\n", fabs(array[1]));
     printf("\n\n\n");
-}
+} */
 
 /**
  * @brief Filters the FFT amplitudes by using the sent_frequency
@@ -444,7 +451,18 @@ int main(void)
                     arm_rfft_fast_f32(&rfft_instance, fft_results, ifft_results, 1);
 
                     #ifdef DEBUG
-                    print_arrays(audio_frame_f32_to_print, fft_to_print, filtered_fft_to_print, ifft_results);
+                    // print_arrays(audio_frame_f32_to_print, fft_to_print, filtered_fft_to_print, ifft_results);
+                    printf("A,");
+                    print_array(audio_frame_f32_to_print);
+
+                    printf("FFT,");
+                    print_array(fft_to_print);
+
+                    printf("FILT,");
+                    print_array(filtered_fft_to_print);
+
+                    printf("IFFT,");
+                    print_array(ifft_results);
                     #endif
                     // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
 
