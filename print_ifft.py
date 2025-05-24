@@ -80,11 +80,11 @@ def update_plot():
     # FFT Signal 
     axs[1].cla()
     axs[1].plot(fft_array, color='green', linewidth=1)
-    axs[1].set_ylim(-0.1,1)
 
     # FFT Signal 
     axs[2].cla()
     axs[2].plot(ifft_array, color='red', linewidth=1)
+    axs[2].set_ylim(-0.1,1)
 
     canvas.draw()
     root.after(100, update_plot)
