@@ -304,7 +304,7 @@ static void normalize_audio(float32_t *audio_frame_f32) {
 
     if (max_audio != min_audio) {
         for (int i = 0; i < FFT_SIZE; i++) {
-            audio_frame_f32[i] = audio_frame_f32[i] / (max_audio - min_audio);
+            audio_frame_f32[i] = (audio_frame_f32[i] + min_audio) / (max_audio - min_audio);
         }
     }
 }
