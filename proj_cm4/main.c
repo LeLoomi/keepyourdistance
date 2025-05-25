@@ -458,9 +458,12 @@ int main(void)
 
 
                     float32_t magnitudes[511] = {0};
+                    uint32_t j = 0;
                     for (int i = 2; i <= FFT_SIZE - 2; i += 2) {
                         assert(i != (FFT_SIZE - 1));
-                        magnitudes[i] = calculate_magnitude(&fft_results[i]);
+                        assert(j < FFT_SIZE/2 - 1);
+                        magnitudes[j] = calculate_magnitude(&fft_results[i]);
+                        j += 1;
                     }
 
                     #ifdef DEBUG
