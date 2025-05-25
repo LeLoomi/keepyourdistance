@@ -7,10 +7,11 @@ import seaborn as sns
 import serial
 import tkinter as tk
 from tkinter import ttk
-import json
+
 
 # Parameters
 SPEED_OF_SOUND = 343  
+SAMPLING_RATE = 96000
 FRAME_LENGTH = 1024
 
 ser = serial.Serial('/dev/tty.usbmodem11203', 115200, timeout=1)
@@ -23,72 +24,63 @@ distance_var = tk.StringVar()
 ttk.Label(root, textvariable=distance_var, font=("Helvetica", 16)).pack(pady=5)
 
 fig, axs = plt.subplots(3, 1, figsize=(12, 8), sharex=False)
-
 canvas = FigureCanvasTkAgg(fig, master=root)
 canvas.get_tk_widget().pack()
 
-# Initialize plots 
-axs[0].set_title("Raw 🦕 Signal")
-axs[0].set_ylabel("Amplitude strength normalized")
+# Set titles/labels
+titles = ["Raw 🦕 Signal", "Fourier Transformed Signal", "Filtered Signal"]
+ylims = [(-0.1, 1), (None, None), (-0.1, 1)]
 
-axs[1].set_title("Fourier Transformed Signal")
-axs[1].set_ylabel("Amplitude strength")
 
-axs[2].set_title("Filtered Signal")
-axs[2].set_ylabel("Amplitude")
+lines = []
+for ax, title, ylim in zip(axs, titles, ylims):
+    ax.set_title(title)
+    ax.set_ylabel("Amplitude")
+    line, = ax.plot(np.zeros(FRAME_LENGTH))
+    lines.append(line)
+    if ylim[0] is not None and ylim[1] is not None:
+        ax.set_ylim(*ylim)
 
 plt.tight_layout()
 
+
 def update_plot():
-    raw_array = np.zeros(1024)
-    fft_array = np.zeros(1024)
-    filt_array = np.zeros(1024)
-    ifft_array = np.zeros(1024)
+    try:
+        while ser.in_waiting:
+            line = ser.readline().decode('utf-8', errors='ignore').strip()
+            if not line or len(line) < 3:
+                continue
 
-    while ser.in_waiting:
-        try:
-            line = ser.readline().decode('utf-8').strip()
-            if line:  
-                    array_type = str(line)[0]
-                    data_string = str(line)[2:]
-                    data_array = np.fromstring(data_string, dtype=float, sep=",")
+            array_type = line[0]
+            data_string = line[2:]
 
-                    print("Received:", data_string)
-                    print("Received:", len(data_array))
+            try:
+                data_array = np.fromstring(data_string, dtype=float, sep=",")
+                if data_array.size < FRAME_LENGTH:
+                    continue
+            except ValueError:
+                continue
 
-                    match array_type: 
-                        case 'A':
-                              raw_array = data_array[1:]
-                        case 'T':
-                              fft_array = data_array[1:]
-                        case 'F':
-                              filt_array = data_array[1:]
-                        case 'I':
-                              ifft_array = data_array[1:]
-                        case _:
-                              continue
-                        
-        except Exception as e:
-            print(f"Fehler beim Lesen: {e}")
+            match array_type:
+                case 'A':
+                    lines[0].set_ydata(data_array)
+                case 'T':
+                    x_values = np.linspace(0, len(data_array), len(data_array))
+                    x_freq = x_values * ((SAMPLING_RATE/2)/len(data_array))
+                    lines[1].set_xdata(x_freq)
+                    lines[1].set_ydata(data_array)
+                case 'F':
+                    filt_array = data_array[1:]
+                case 'I':
+                    lines[2].set_ydata(data_array)
+                case _:
+                    continue
 
-
-    # raw 🦕 signal
-    axs[0].cla()
-    axs[0].plot(raw_array, color='blue', linewidth=1)
-    axs[0].set_ylim(-0.1,1)
-    
-    # FFT Signal 
-    axs[1].cla()
-    axs[1].plot(fft_array, color='green', linewidth=1)
-
-    # FFT Signal 
-    axs[2].cla()
-    axs[2].plot(ifft_array, color='red', linewidth=1)
-    axs[2].set_ylim(-0.1,1)
+    except Exception as e:
+        print("Fehler beim Lesen:", e)
 
     canvas.draw()
     root.after(100, update_plot)
 
 update_plot()
 root.mainloop()
-
