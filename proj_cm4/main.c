@@ -485,7 +485,7 @@ int main(void)
                     for (int i = 2; i <= FFT_SIZE - 2; i += 2) {
                         assert(i != (FFT_SIZE - 1));
                         assert(k < FFT_SIZE/2 - 1);
-                        fft_magnitudes[k] = calculate_magnitude(&fft_results[i]);
+                        filtered_magnitudes[k] = calculate_magnitude(&fft_results[i]);
                         k += 1;
                     }
 
