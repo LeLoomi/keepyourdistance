@@ -117,6 +117,11 @@ static volatile uint8_t msg_cmd = 0;
 
 #define SIGNAL_FREQUENCY_HZ         41600u      // 41.6 kHz
 
+typedef struct {
+    float32_t amplitude;
+    float32_t phase;
+} complex_t;
+
 /*******************************************************************************
 * Function Prototypes
 ********************************************************************************/
@@ -242,7 +247,7 @@ static inline float32_t* access_amplitude(float32_t *complex, uint32_t index) {
  */
 static inline float32_t get_frequency_by_index(uint32_t index, uint32_t sample_rate) {
     assert(index < COMPLEX_SIZE);
-    return index * (sample_rate/2) / COMPLEX_SIZE;
+    return index * (sample_rate) / (COMPLEX_SIZE-1);
 }
 
 /**
@@ -256,7 +261,7 @@ static inline float32_t get_frequency_by_index(uint32_t index, uint32_t sample_r
 static inline uint32_t get_index_by_frequency(uint32_t frequency, uint32_t sample_rate) {
     assert(frequency <= SAMPLE_RATE_HZ);
     assert(frequency >= 0);
-    return COMPLEX_SIZE * frequency / (sample_rate/2);
+    return (COMPLEX_SIZE-1) * frequency / (sample_rate);
 }
 
 /* static void print_fft_results(const float32_t *array) {
@@ -270,18 +275,18 @@ static inline uint32_t get_index_by_frequency(uint32_t frequency, uint32_t sampl
 /**
  * @brief Filters the FFT amplitudes by using the sent_frequency
  * 
- * @note All amplitude values belonging to frequencies outside the bandwidth around our
- * sent_frequency are set to 0. Phases are left untouched.
+ * @note All amplitude and phase values belonging to frequencies outside the bandwidth around our
+ * sent_frequency are set to 0.
  * 
- * @param[in,out]   complex           Complex values to filter
+ * @param[in,out]   complex_array     Complex values to filter
  * @param[in]       bandwidth         Bandwidth around the sent_frequency
  * @param[in]       sample_rate       The sample rate of the capturing device
  * @param[in]       sent_frequency    The frequency of the ultra sonic device
  */
-static void filter_fft(float32_t *complex, uint32_t bandwidth, 
+static void filter_fft(float32_t *complex_array, uint32_t bandwidth, 
                        uint32_t sample_rate, uint32_t sent_frequency) {
     // width of one bucket
-    const uint32_t bucket_width = (sample_rate/2) / COMPLEX_SIZE;
+    const uint32_t bucket_width = sample_rate / (COMPLEX_SIZE - 1);
 
     // figure out which slot contains the sent frequency, so that we can get the bandwidth around said frequency
     uint32_t bucket_index = get_index_by_frequency(sent_frequency, sample_rate);
@@ -292,10 +297,12 @@ static void filter_fft(float32_t *complex, uint32_t bandwidth,
     const uint32_t upper_index = bucket_index + r;
     const uint32_t lower_index = bucket_index - r;
 
-    for (uint32_t i = 0; i < COMPLEX_SIZE; i++) {
+    for (uint32_t i = 2; i <= FFT_SIZE - 2; i += 2) {
         // set everything to 0 that is outside of our bandwidth
         if (i < lower_index || i > upper_index) {
-            *access_amplitude(complex, i) = 0.0f;
+            complex_t *complex = (complex_t *) &complex_array[i];
+            complex->amplitude = 0;
+            complex->phase = 0;
         }
     }
 }
@@ -457,12 +464,12 @@ int main(void)
                     arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, fft_results, 0);
 
 
-                    float32_t magnitudes[511] = {0};
+                    float32_t fft_magnitudes[511] = {0};
                     uint32_t j = 0;
                     for (int i = 2; i <= FFT_SIZE - 2; i += 2) {
                         assert(i != (FFT_SIZE - 1));
                         assert(j < FFT_SIZE/2 - 1);
-                        magnitudes[j] = calculate_magnitude(&fft_results[i]);
+                        fft_magnitudes[j] = calculate_magnitude(&fft_results[i]);
                         j += 1;
                     }
 
@@ -472,6 +479,15 @@ int main(void)
 
                     // zero all unwanted frequencies
                     filter_fft(fft_results, BANDWIDTH_HZ, SAMPLE_RATE_HZ, SIGNAL_FREQUENCY_HZ);
+
+                    float32_t filtered_magnitudes[511] = {0};
+                    uint32_t k = 0;
+                    for (int i = 2; i <= FFT_SIZE - 2; i += 2) {
+                        assert(i != (FFT_SIZE - 1));
+                        assert(j < FFT_SIZE/2 - 1);
+                        fft_magnitudes[j] = calculate_magnitude(&fft_results[i]);
+                        k += 1;
+                    }
 
                     #ifdef DEBUG
                     memcpy(&filtered_fft_to_print, &fft_results, FFT_SIZE * sizeof(float32_t));
@@ -487,13 +503,13 @@ int main(void)
 
                     printf("T,");
                     for (int i = 0; i < MAGNITUDES_SIZE; i++) {
-                        printf("%f,", magnitudes[i]);
+                        printf("%f,", fft_magnitudes[i]);
                     }
                     printf("\n");
 
                     printf("F,");
-                    for (int i = 0; i < COMPLEX_SIZE; i++) {
-                        printf("%f,", *access_amplitude(filtered_fft_to_print, i));
+                    for (int i = 0; i < MAGNITUDES_SIZE; i++) {
+                        printf("%f,", filtered_magnitudes[i]);
                     }
                     printf("\n");
 
