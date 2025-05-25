@@ -439,6 +439,8 @@ int main(void)
                     // split the signal into its individual frequencies
                     arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, fft_results, 0);
 
+                    printf("LAST VALUE: %f\n", fft_results[FFT_SIZE-1]);
+
                     for (int i = 0; i < FFT_SIZE; i++) {
                         fft_results[i] = fabs(fft_results[i]);
                     }
