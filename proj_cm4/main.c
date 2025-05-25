@@ -297,6 +297,9 @@ static void filter_fft(float32_t *complex_array, uint32_t bandwidth,
     const uint32_t upper_index = bucket_index + r;
     const uint32_t lower_index = bucket_index - r;
 
+    printf("Bucket index: %lu, Lower index: %lu, Upper index: %lu, Sent frequency: %lu, Sample rate: %lu, Bandwidth: %lu, Bucket width: %lu\n", 
+        bucket_index, lower_index, upper_index, sent_frequency, sample_rate, bandwidth, bucket_width);
+
     for (uint32_t i = 2; i <= FFT_SIZE - 2; i += 2) {
         // set everything to 0 that is outside of our bandwidth
         if (i < lower_index || i > upper_index) {
