@@ -48,6 +48,7 @@
 
 #include "stdlib.h"
 #include "assert.h"
+#include "math.h"
 
 #include "ipc_communication.h"
 
@@ -98,6 +99,12 @@ static volatile uint8_t msg_cmd = 0;
  * stored in the original audio frame
  */
 #define AMPLITUDE_SIZE              FFT_SIZE/2
+
+/**
+ * @brief The first two values after the FFT are discarded, leaving us with 
+ * FFT_SIZE/2 - 1 complex numbers.
+ */
+#define MAGNITUDES_SIZE             FFT_SIZE/2-1
 
 /**
  * @brief the FFT provides us with complex numbers, represented by 2 floats
@@ -309,6 +316,16 @@ static void normalize_audio(float32_t *audio_frame_f32) {
     }
 }
 
+/**
+ * @brief Calculates the magnitude of a complex number
+ * 
+ * @param complex Needs to be an array of two floats
+ * @return The magnitude of the complex number
+ */
+static inline float32_t calculate_magnitude(const float32_t *complex) {
+    return sqrtf(complex[0] * complex[0] + complex[1] * complex[1]);
+}
+
 /*******************************************************************************
 * Function Name: main
 ********************************************************************************
@@ -439,10 +456,11 @@ int main(void)
                     // split the signal into its individual frequencies
                     arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, fft_results, 0);
 
-                    printf("LAST VALUE: %f\n", fft_results[FFT_SIZE-1]);
 
-                    for (int i = 0; i < FFT_SIZE; i++) {
-                        fft_results[i] = fabs(fft_results[i]);
+                    float32_t magnitudes[511] = {0};
+                    for (int i = 2; i <= FFT_SIZE - 2; i += 2) {
+                        assert(i != (FFT_SIZE - 1));
+                        magnitudes[i] = calculate_magnitude(&fft_results[i]);
                     }
 
                     #ifdef DEBUG
@@ -465,8 +483,8 @@ int main(void)
                     print_array(audio_frame_f32_to_print, FFT_SIZE);
 
                     printf("T,");
-                    for (int i = 0; i < COMPLEX_SIZE; i++) {
-                        printf("%f,", *access_amplitude(fft_to_print, i));
+                    for (int i = 0; i < MAGNITUDES_SIZE; i++) {
+                        printf("%f,", magnitudes[i]);
                     }
                     printf("\n");
 
