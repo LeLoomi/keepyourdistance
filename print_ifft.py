@@ -23,12 +23,12 @@ root.title("Akustische Distanzmessung")
 distance_var = tk.StringVar()
 ttk.Label(root, textvariable=distance_var, font=("Helvetica", 16)).pack(pady=5)
 
-fig, axs = plt.subplots(3, 1, figsize=(12, 8), sharex=False)
+fig, axs = plt.subplots(4, 1, figsize=(12, 8), sharex=False)
 canvas = FigureCanvasTkAgg(fig, master=root)
 canvas.get_tk_widget().pack()
 
 # Set titles/labels
-titles = ["Raw Signal", "Fourier Transformed Signal", "Filtered Signal"]
+titles = ["Raw Signal", "Fourier Transformed Signal","Filtered Signal FFT", "Filtered Signal"]
 
 
 lines = []
@@ -42,6 +42,8 @@ for ax, title in zip(axs, titles):
 
 axs[1].set_xlim(-10, 44000)
 axs[1].set_ylim(-5, 100)
+axs[2].set_xlim(-10, 44000)
+axs[2].set_ylim(-5, 100)
 
 def update_plot():
     try:
@@ -70,9 +72,14 @@ def update_plot():
                     help_array = np.append(data_array, np.zeros(513))
                     lines[1].set_ydata(help_array)
                 case 'F':
-                    filt_array = data_array
+                    x_values = np.linspace(0, FRAME_LENGTH, FRAME_LENGTH)
+                    x_freq = x_values * (SAMPLING_RATE/len(data_array))
+                    lines[2].set_xdata(x_freq)
+
+                    help_array = np.append(data_array, np.zeros(513))
+                    lines[2].set_ydata(help_array)
                 case 'I':
-                    lines[2].set_ydata(data_array)
+                    lines[3].set_ydata(data_array)
                 case _:
                     continue
 
