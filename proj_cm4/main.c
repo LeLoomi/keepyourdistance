@@ -247,7 +247,7 @@ static inline float32_t* access_amplitude(float32_t *complex, uint32_t index) {
  */
 static inline float32_t get_frequency_by_index(uint32_t index, uint32_t sample_rate) {
     assert(index < COMPLEX_SIZE);
-    return index * (sample_rate) / (COMPLEX_SIZE-1);
+    return index * (sample_rate/2) / (COMPLEX_SIZE-1);
 }
 
 /**
@@ -261,7 +261,7 @@ static inline float32_t get_frequency_by_index(uint32_t index, uint32_t sample_r
 static inline uint32_t get_index_by_frequency(uint32_t frequency, uint32_t sample_rate) {
     assert(frequency <= SAMPLE_RATE_HZ);
     assert(frequency >= 0);
-    return (COMPLEX_SIZE-1) * frequency / (sample_rate);
+    return (COMPLEX_SIZE-1) * frequency / (sample_rate/2);
 }
 
 /* static void print_fft_results(const float32_t *array) {
@@ -286,7 +286,7 @@ static inline uint32_t get_index_by_frequency(uint32_t frequency, uint32_t sampl
 static void filter_fft(float32_t *complex_array, uint32_t bandwidth, 
                        uint32_t sample_rate, uint32_t sent_frequency) {
     // width of one bucket
-    const uint32_t bucket_width = sample_rate / (COMPLEX_SIZE - 1);
+    const uint32_t bucket_width = sample_rate/2 / (COMPLEX_SIZE - 1);
 
     // figure out which slot contains the sent frequency, so that we can get the bandwidth around said frequency
     uint32_t bucket_index = get_index_by_frequency(sent_frequency, sample_rate);
