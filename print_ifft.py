@@ -35,9 +35,13 @@ lines = []
 for ax, title in zip(axs, titles):
     ax.set_title(title)
     ax.set_ylabel("Amplitude")
+    ax.set_ylim(-0.1,1)
     line, = ax.plot(np.zeros(FRAME_LENGTH))
     lines.append(line)
 
+
+axs[1].set_xlim(-10, 44000)
+axs[1].set_ylim(-5, 100)
 
 def update_plot():
     try:
@@ -50,7 +54,8 @@ def update_plot():
             data_string = line[2:]
 
             try:
-                data_array = np.fromstring(data_string, dtype=float, sep=",")
+                float_list = [float(x) for x in data_string.split(",") if x.strip()]
+                data_array = np.array(float_list)
             except ValueError:
                 continue
 
@@ -58,12 +63,14 @@ def update_plot():
                 case 'A':
                     lines[0].set_ydata(data_array)
                 case 'T':
-                    x_values = np.linspace(0, len(data_array), len(data_array))
-                    x_freq = x_values * ((SAMPLING_RATE/2)/len(data_array))
-                    lines[1].set_xdata(np.append(x_freq, np.zeros(513)))
-                    lines[1].set_ydata(np.append(data_array, np.zeros(513)))
+                    x_values = np.linspace(0, FRAME_LENGTH, FRAME_LENGTH)
+                    x_freq = x_values * (SAMPLING_RATE/len(data_array))
+                    lines[1].set_xdata(x_freq)
+
+                    help_array = np.append(data_array, np.zeros(513))
+                    lines[1].set_ydata(help_array)
                 case 'F':
-                    filt_array = data_array[1:]
+                    filt_array = data_array
                 case 'I':
                     lines[2].set_ydata(data_array)
                 case _:
