@@ -422,8 +422,6 @@ int main(void)
         CY_ASSERT(0);
     }
 
-    int v_index = 0;
-
     arm_rfft_fast_instance_f32 rfft_instance;
     arm_rfft_fast_init_f32(&rfft_instance, FFT_SIZE);
 
@@ -522,9 +520,6 @@ int main(void)
                     // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
 
                     // SEND_IPC_MSG(IPC_END_R);
-                    v_index++;
-
-                    if (v_index >= FFT_SIZE) v_index = 0;
                 }
 
         msg_cmd = 0;
