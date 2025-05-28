@@ -58,7 +58,7 @@
                                                 USER_IPC_PIPE_EP_ADDR_CM4, \
                                                 (void *) &ipc_msg, 0);
 
-static void cm4_msg_callback(uint32_t *msg);
+
 
 static volatile uint8_t msg_cmd = 0;
 
@@ -70,33 +70,69 @@ static volatile uint8_t msg_cmd = 0;
     .cmd        = IPC_CMD_INIT,
 }; */
 
-/*******************************************************************************
-* Macros
-********************************************************************************/
-/* Define how many samples in a frame */
+/**
+ * @brief Define how many samples in a frame 
+ * 
+ */
 #define FRAME_SIZE                  (1024)
-/* Noise threshold hysteresis */
+
+/** 
+ * @brief Noise threshold hysteresis 
+ * 
+ */
 #define THRESHOLD_HYSTERESIS        0u
-/* Volume ratio for noise and print purposes */
+
+/**
+ * @brief Volume ratio for noise and print purposes
+ * 
+ */
 #define VOLUME_RATIO                (4*FRAME_SIZE)
-/* Desired sample rate. Typical values: 8/16/22.05/32/44.1/48kHz */
+
+/**
+ * @brief Desired sample rate. Typical values: 8/16/22.05/32/44.1/48kHz
+ * 
+ */
 #define SAMPLE_RATE_HZ              96000u
-/* Decimation Rate of the PDM/PCM block. Typical value is 64 */
+
+
+/**
+ * @brief Decimation Rate of the PDM/PCM block. Typical value is 64
+ * 
+ */
 #define DECIMATION_RATE             64u
-/* Audio Subsystem Clock. Typical values depends on the desire sample rate:
-- 8/16/48kHz    : 24.576 MHz
-- 22.05/44.1kHz : 22.579 MHz */
+
+/**
+ * @brief Audio Subsystem Clock. Typical values depends on the desire sample rate:
+ * - 8/16/48kHz    : 24.576 MHz
+ * - 22.05/44.1kHz : 22.579 MHz
+ *
+ */
 #define AUDIO_SYS_CLOCK_HZ          24576000u
-/* PDM/PCM Pins */
+
+
+/**
+ * @brief PDM/PCM Data Pin
+ *
+ */
 #define PDM_DATA                    P10_5
+
+/**
+ * @brief PDM/PCM Clock Pin
+ *
+ */
 #define PDM_CLK                     P10_4
 
+/**
+ * @brief Amount of results returned from the FFT
+ * 
+ */
 #define FFT_SIZE                    1024
 
 /**
  * @brief the amount of amplitudes that we get after the FFT.
  * Because we discard the phases, we get only half the amount of values that were
  * stored in the original audio frame
+ *
  */
 #define AMPLITUDE_SIZE              FFT_SIZE/2
 
@@ -108,30 +144,48 @@ static volatile uint8_t msg_cmd = 0;
 
 /**
  * @brief the FFT provides us with complex numbers, represented by 2 floats
+ * 
  */
 #define COMPLEX_SIZE                FFT_SIZE/2
 
+
+/**
+ * @brief Frequency of the timer, so one tick lasts 1/FFT_TIMER_HZ
+ * 
+ */
 #define FFT_TIMER_HZ                10000000u   // 10 mHz
 
+/**
+ * @brief The bandwidth to filter around
+ * 
+ */
 #define BANDWIDTH_HZ                3000u       // 3 kHz
 
+/**
+ * @brief Frequency of the sent signal
+ * 
+ */
 #define SIGNAL_FREQUENCY_HZ         41600u      // 41.6 kHz
+
+
+/**
+ * @brief The size of the signal that is used for convolution
+ * 
+ */
+#define SLIDING_SIGNAL_SIZE       20u
+
+x#define PI 3.14159265358979323846
+
 
 typedef struct {
     float32_t amplitude;
     float32_t phase;
 } complex_t;
 
-/*******************************************************************************
-* Function Prototypes
-********************************************************************************/
 void pdm_pcm_isr_handler(void *arg, cyhal_pdm_pcm_event_t event);
 void clock_init(void);
-void clock_init_fft(void);
+static void cm4_msg_callback(uint32_t *msg);
 
-/*******************************************************************************
-* Global Variables
-********************************************************************************/
 /* Interrupt flags */
 volatile bool pdm_pcm_flag = true;
 
@@ -169,16 +223,11 @@ static volatile bool msg_flag = false;
 static volatile uint32_t msg_value;
 static volatile uint32_t start_tick;
 
-/*******************************************************************************
-* Function Name: cm4_msg_callback
-********************************************************************************
-* Summary:
-*   Callback function to execute when receiving a message from CM0+ to CM4.
-*
-* Parameters:
-*   msg: message received
-*
-*******************************************************************************/
+/**
+ * @brief Callback function to execute when receiving a message from CM0+ to CM4.
+ * 
+ * @param[in] msg Received message 
+ */
 static void cm4_msg_callback(uint32_t *msg)
 {
     ipc_msg_t *ipc_recv_msg;
@@ -194,7 +243,19 @@ static void cm4_msg_callback(uint32_t *msg)
     }
 }
 
-// raw rfft filter irfft
+
+
+static void generate_sent_signal(uint32_t f_sent, uint32_t f_sample, uint32_t bursts, float32_t *output_signal, uint32_t max_output_length) {
+    /* the signal lasts bursts / f_sent, this is then mutliplied with f_sample to get the amount of samples in that signal */
+    uint32_t sample_count =  (uint32_t) (bursts * (float32_t) f_sample / (float32_t) f_sent);
+
+    assert(sample_count <= max_output_length); 
+
+    for (uint32_t i = 0; i < sample_count; i++) {
+        float32_t t = (float32_t) i / f_sample;
+        output_signal[i] = sinf(2.0f * PI * f_sent * t);
+    }
+}
 
 static void print_array(const float32_t *array, uint32_t size) {
     for (int i = 0; i < size; i++) {
