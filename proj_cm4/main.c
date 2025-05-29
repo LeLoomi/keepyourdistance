@@ -45,6 +45,7 @@
 #include "cy_retarget_io.h"
 #include "COMPONENT_CMSIS_DSP/Include/dsp/transform_functions.h"
 #include "COMPONENT_CMSIS_DSP/Include/dsp/statistics_functions.h"
+#include "COMPONENT_CMSIS_DSP/Include/dsp/filtering_functions.h"
 
 #include "stdlib.h"
 #include "assert.h"
@@ -174,7 +175,14 @@ static volatile uint8_t msg_cmd = 0;
  */
 #define SLIDING_SIGNAL_SIZE       20u
 
-x#define PI 3.14159265358979323846
+/**
+ * @brief How many bursts are sent
+ * 
+ */
+#define BURST_SIZE                5
+
+#define MAX_GENERATED_SIGNAL_SIZE 32
+
 
 
 typedef struct {
@@ -244,17 +252,30 @@ static void cm4_msg_callback(uint32_t *msg)
 }
 
 
-
-static void generate_sent_signal(uint32_t f_sent, uint32_t f_sample, uint32_t bursts, float32_t *output_signal, uint32_t max_output_length) {
+/**
+ * @brief Generates the sent signal
+ * 
+ * @param f_sent                Frequency of the sent signal
+ * @param f_sample              Sample rate of the microphone
+ * @param bursts                Amount of bursts
+ * @param output_signal         The output signal
+ * @param max_output_length     Capacity of output_signal
+ * 
+ * @return length of the generated signal
+ */
+static uint32_t generate_sent_signal(uint32_t f_sent, uint32_t f_sample, uint32_t bursts, 
+    float32_t *output_signal, uint32_t max_output_length) {
     /* the signal lasts bursts / f_sent, this is then mutliplied with f_sample to get the amount of samples in that signal */
     uint32_t sample_count =  (uint32_t) (bursts * (float32_t) f_sample / (float32_t) f_sent);
 
     assert(sample_count <= max_output_length); 
 
     for (uint32_t i = 0; i < sample_count; i++) {
-        float32_t t = (float32_t) i / f_sample;
+        float32_t t = (float32_t) i / (float32_t) f_sample;
         output_signal[i] = sinf(2.0f * PI * f_sent * t);
     }
+
+    return sample_count;
 }
 
 static void print_array(const float32_t *array, uint32_t size) {
@@ -486,9 +507,17 @@ int main(void)
     arm_rfft_fast_instance_f32 rfft_instance;
     arm_rfft_fast_init_f32(&rfft_instance, FFT_SIZE);
 
+    float32_t generated_signal[MAX_GENERATED_SIGNAL_SIZE] = {0};
+    uint32_t generated_signal_length = generate_sent_signal(SIGNAL_FREQUENCY_HZ, SAMPLE_RATE_HZ, 5,
+        generated_signal, MAX_GENERATED_SIGNAL_SIZE);
+
     float32_t fft_results[FFT_SIZE] = {0};
     float32_t ifft_results[FFT_SIZE] = {0};
     float32_t audio_frame_f32[FFT_SIZE] = {0};
+
+    float32_t convoluted_signal[FRAME_SIZE + MAX_GENERATED_SIGNAL_SIZE - 1] = {0};
+
+    const uint32_t convoluted_signal_length = FRAME_SIZE + generated_signal_length - 1;
 
     for(;;)
     {
@@ -557,6 +586,9 @@ int main(void)
 
                     // do inverse FFT on the filtered signal
                     arm_rfft_fast_f32(&rfft_instance, fft_results, ifft_results, 1);
+
+                    // do a convolution on the signal
+                    arm_conv_f32(ifft_results, FFT_SIZE, generated_signal, generated_signal_length, convoluted_signal);
 
                     #ifdef DEBUG
                     // print_arrays(audio_frame_f32_to_print, fft_to_print, filtered_fft_to_print, ifft_results);
