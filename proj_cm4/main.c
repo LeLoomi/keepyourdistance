@@ -271,8 +271,8 @@ static uint32_t generate_sent_signal(uint32_t f_sent, uint32_t f_sample, uint32_
     assert(sample_count <= max_output_length); 
 
     for (uint32_t i = 0; i < sample_count; i++) {
-        float32_t t = (float32_t) i / (float32_t) f_sample;
-        output_signal[i] = sinf(2.0f * PI * f_sent * t);
+        // generates an alternating 1 and 0 signal
+        output_signal[i] = (uint32_t) (i * (float32_t) f_sample/ (float32_t) f_sent / 2.0f + 1) % 2;
     }
 
     return sample_count;
@@ -515,6 +515,7 @@ int main(void)
     float32_t ifft_results[FFT_SIZE] = {0};
     float32_t audio_frame_f32[FFT_SIZE] = {0};
 
+    /* we don't exactly know the exact length of the convolution as it depends on the generated signal, set it to max */ 
     float32_t convoluted_signal[FRAME_SIZE + MAX_GENERATED_SIGNAL_SIZE - 1] = {0};
 
     const uint32_t convoluted_signal_length = FRAME_SIZE + generated_signal_length - 1;
@@ -592,23 +593,35 @@ int main(void)
 
                     #ifdef DEBUG
                     // print_arrays(audio_frame_f32_to_print, fft_to_print, filtered_fft_to_print, ifft_results);
+
+                    /*
+                    // RAW AUDIO
                     printf("A,");
                     print_array(audio_frame_f32_to_print, FFT_SIZE);
 
+                    // FFT output
                     printf("T,");
                     for (int i = 0; i < MAGNITUDES_SIZE; i++) {
                         printf("%f,", fft_magnitudes[i]);
                     }
                     printf("\n");
 
+                    // Filtered FFT
                     printf("F,");
                     for (int i = 0; i < MAGNITUDES_SIZE; i++) {
                         printf("%f,", filtered_magnitudes[i]);
                     }
                     printf("\n");
 
+                    // IFFT signal
                     printf("I,");
                     print_array(ifft_results, FFT_SIZE);
+                    */
+
+                    // Convoluted signal
+                    printf("C,");
+                    print_array(convoluted_signal, 1024);
+
                     #endif
                     // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
 

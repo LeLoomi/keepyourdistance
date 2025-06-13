@@ -11,10 +11,11 @@ from tkinter import ttk
 
 # Parameters
 SPEED_OF_SOUND = 343  
+SENT_RATE = 44000
 SAMPLING_RATE = 96000
 FRAME_LENGTH = 1024
 
-ser = serial.Serial('/dev/tty.usbmodem2103', 115200, timeout=1)
+ser = serial.Serial('/dev/tty.usbmodem103', 115200, timeout=1)
 
 sns.set_theme(style="darkgrid")
 root = tk.Tk()
@@ -44,6 +45,19 @@ axs[1].set_xlim(-10, 44000)
 axs[1].set_ylim(-5, 100)
 axs[2].set_xlim(-10, 44000)
 axs[2].set_ylim(-5, 100)
+axs[3].set_xlim(-1, 1040)
+axs[3].set_ylim(0, 10)
+
+def important_function(fft_data_array):
+    bucket_width = (SAMPLING_RATE/2)/FRAME_LENGTH
+
+    if fft_data_array[np.floor(SENT_RATE/bucket_width)] > 50:
+        return fft_data_array
+    else:
+        return np.zeros(1024)
+
+
+
 
 def update_plot():
     try:
@@ -62,23 +76,27 @@ def update_plot():
                 continue
 
             match array_type:
-                case 'A':
+                case 'A': # raw audio signal
                     lines[0].set_ydata(data_array)
-                case 'T':
+                case 'T': # FFT transformed signal
                     x_values = np.linspace(0, FRAME_LENGTH, FRAME_LENGTH)
                     x_freq = x_values * (SAMPLING_RATE/len(data_array))
                     lines[1].set_xdata(x_freq)
 
                     help_array = np.append(data_array, np.zeros(513))
+                    important_function(help_array)
                     lines[1].set_ydata(help_array)
-                case 'F':
+                case 'F': # filtered signal
                     x_values = np.linspace(0, FRAME_LENGTH, FRAME_LENGTH)
                     x_freq = x_values * (SAMPLING_RATE/len(data_array))
                     lines[2].set_xdata(x_freq)
 
                     help_array = np.append(data_array, np.zeros(513))
                     lines[2].set_ydata(help_array)
-                case 'I':
+                case 'I': # inverded filtered signal
+                    #lines[3].set_ydata(data_array)
+                    continue
+                case 'C': # convoluted signal
                     lines[3].set_ydata(data_array)
                 case _:
                     continue
