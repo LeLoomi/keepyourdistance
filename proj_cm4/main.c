@@ -154,7 +154,7 @@ static volatile uint8_t msg_cmd = 0;
  * @brief Frequency of the timer, so one tick lasts 1/FFT_TIMER_HZ
  * 
  */
-#define FFT_TIMER_HZ                10000000u   // 10 mHz
+#define FFT_TIMER_HZ                10000000u   // 10 MHz
 
 /**
  * @brief The bandwidth to filter around
@@ -180,6 +180,9 @@ static volatile uint8_t msg_cmd = 0;
  * 
  */
 #define BURST_SIZE                5
+
+/* speed of sound in 21 degrees celsius (room temperature) */
+#define SPEED_OF_SOUND            343.72
 
 #define MAX_GENERATED_SIGNAL_SIZE 32
 
@@ -418,6 +421,16 @@ static inline float32_t calculate_magnitude(const float32_t *complex) {
     return sqrtf(complex[0] * complex[0] + complex[1] * complex[1]);
 }
 
+/* return the time in seconds */
+static inline float32_t calculate_time_from_bucket(uint32_t bucket_index) {
+    return (float32_t) (bucket_index) / (float32_t) SAMPLE_RATE_HZ;
+}
+
+/* return distance in meters */
+static inline float32_t calculate_distance(float32_t time) {
+    return (time * SPEED_OF_SOUND) / 2;
+}
+
 /*******************************************************************************
 * Function Name: main
 ********************************************************************************
@@ -476,7 +489,6 @@ int main(void)
     cyhal_pdm_pcm_enable_event(&pdm_pcm, CYHAL_PDM_PCM_ASYNC_COMPLETE, CYHAL_ISR_PRIORITY_DEFAULT, true);
     cyhal_pdm_pcm_start(&pdm_pcm);
 
-
     // Initialize the sync timer
     result = cyhal_timer_init(&fft_timer, NC, NULL);
     if (result != CY_RSLT_SUCCESS)
@@ -520,113 +532,137 @@ int main(void)
 
     const uint32_t convoluted_signal_length = FRAME_SIZE + generated_signal_length - 1;
 
+    // uint32_t start_t = 0;
+    // uint32_t end_t = 0;
+
     for(;;)
     {
         switch (msg_cmd) {
-            case IPC_START_S:
-            printf("\nSTART_S\n");
+            case IPC_START_S:    
+                printf("\nSTART_S\n");
                 /* Check if any microphone has data to process */
-                if (pdm_pcm_flag)
+                if (pdm_pcm_flag) 
                 {
-                    /* Clear the PDM/PCM flag */
-                    pdm_pcm_flag = 0;
+                /* Clear the PDM/PCM flag */
+                pdm_pcm_flag = 0;
 
-                    /* Setup to read the next frame */
-                    cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
+                /* Setup to read the next frame */            
+                cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
+ 
+                // Convert to 32-bit float
 
-                    // Convert to 32-bit float
-
-                    for (size_t i = 0; i < FFT_SIZE; i++)
-                    {
-                        audio_frame_f32[i] = (float32_t)audio_frame[i];
-                    }
-
-                    normalize_audio(audio_frame_f32);
-
-                    #ifdef DEBUG
-                    // FOR DEBUGGING ONLY
-                    float32_t audio_frame_f32_to_print[FFT_SIZE];
-                    float32_t fft_to_print[FFT_SIZE];
-                    float32_t filtered_fft_to_print[FFT_SIZE];
-
-                    memcpy(&audio_frame_f32_to_print, &audio_frame_f32, FFT_SIZE * sizeof(float32_t));
-                    #endif
-                    
-                    // split the signal into its individual frequencies
-                    arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, fft_results, 0);
-
-
-                    float32_t fft_magnitudes[511] = {0};
-                    uint32_t j = 0;
-                    for (int i = 2; i <= FFT_SIZE - 2; i += 2) {
-                        assert(i != (FFT_SIZE - 1));
-                        assert(j < FFT_SIZE/2 - 1);
-                        fft_magnitudes[j] = calculate_magnitude(&fft_results[i]);
-                        j += 1;
-                    }
-
-                    #ifdef DEBUG
-                    memcpy(&fft_to_print, &fft_results, FFT_SIZE * sizeof(float32_t));
-                    #endif
-
-                    // zero all unwanted frequencies
-                    filter_fft(fft_results, BANDWIDTH_HZ, SAMPLE_RATE_HZ, SIGNAL_FREQUENCY_HZ);
-
-                    float32_t filtered_magnitudes[511] = {0};
-                    uint32_t k = 0;
-                    for (int i = 2; i <= FFT_SIZE - 2; i += 2) {
-                        assert(i != (FFT_SIZE - 1));
-                        assert(k < FFT_SIZE/2 - 1);
-                        filtered_magnitudes[k] = calculate_magnitude(&fft_results[i]);
-                        k += 1;
-                    }
-
-                    #ifdef DEBUG
-                    memcpy(&filtered_fft_to_print, &fft_results, FFT_SIZE * sizeof(float32_t));
-                    #endif
-
-                    // do inverse FFT on the filtered signal
-                    arm_rfft_fast_f32(&rfft_instance, fft_results, ifft_results, 1);
-
-                    // do a convolution on the signal
-                    arm_conv_f32(ifft_results, FFT_SIZE, generated_signal, generated_signal_length, convoluted_signal);
-
-                    #ifdef DEBUG
-                    // print_arrays(audio_frame_f32_to_print, fft_to_print, filtered_fft_to_print, ifft_results);
-
-                    
-                    // RAW AUDIO
-                    printf("A,");
-                    print_array(audio_frame_f32_to_print, FFT_SIZE);
-
-                    // FFT output
-                    printf("T,");
-                    for (int i = 0; i < MAGNITUDES_SIZE; i++) {
-                        printf("%f,", fft_magnitudes[i]);
-                    }
-                    printf("\n");
-
-                    // Filtered FFT
-                    printf("F,");
-                    for (int i = 0; i < MAGNITUDES_SIZE; i++) {
-                        printf("%f,", filtered_magnitudes[i]);
-                    }
-                    printf("\n");
-
-                    // IFFT signal
-                    printf("I,");
-                    print_array(ifft_results, FFT_SIZE);
-
-                    // Convoluted signal
-                    printf("C,");
-                    print_array(convoluted_signal, 1024);
-
-                    #endif
-                    // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
-
-                    // SEND_IPC_MSG(IPC_END_R);
+                for (size_t i = 0; i < FFT_SIZE; i++)
+                {
+                    audio_frame_f32[i] = (float32_t)audio_frame[i];
                 }
 
+                normalize_audio(audio_frame_f32);
+
+                #ifdef DEBUG
+                // FOR DEBUGGING ONLY
+                float32_t audio_frame_f32_to_print[FFT_SIZE];
+                float32_t fft_to_print[FFT_SIZE];
+                float32_t filtered_fft_to_print[FFT_SIZE];
+
+                memcpy(&audio_frame_f32_to_print, &audio_frame_f32, FFT_SIZE * sizeof(float32_t));
+                #endif
+                
+                // split the signal into its individual frequencies
+                arm_rfft_fast_f32(&rfft_instance, audio_frame_f32, fft_results, 0);
+
+
+                float32_t fft_magnitudes[511] = {0};
+                uint32_t j = 0;
+                for (int i = 2; i <= FFT_SIZE - 2; i += 2) {
+                    assert(i != (FFT_SIZE - 1));
+                    assert(j < FFT_SIZE/2 - 1);
+                    fft_magnitudes[j] = calculate_magnitude(&fft_results[i]);
+                    j += 1;
+                }
+
+                #ifdef DEBUG
+                memcpy(&fft_to_print, &fft_results, FFT_SIZE * sizeof(float32_t));
+                #endif
+
+                // zero all unwanted frequencies
+                filter_fft(fft_results, BANDWIDTH_HZ, SAMPLE_RATE_HZ, SIGNAL_FREQUENCY_HZ);
+
+                float32_t filtered_magnitudes[511] = {0};
+                uint32_t k = 0;
+                for (int i = 2; i <= FFT_SIZE - 2; i += 2) {
+                    assert(i != (FFT_SIZE - 1));
+                    assert(k < FFT_SIZE/2 - 1);
+                    filtered_magnitudes[k] = calculate_magnitude(&fft_results[i]);
+                    k += 1;
+                }
+
+                #ifdef DEBUG
+                memcpy(&filtered_fft_to_print, &fft_results, FFT_SIZE * sizeof(float32_t));
+                #endif
+
+                // do inverse FFT on the filtered signal
+                arm_rfft_fast_f32(&rfft_instance, fft_results, ifft_results, 1);
+
+                // do a convolution on the signal
+                arm_conv_partial_f32(
+                    generated_signal, generated_signal_length,
+                    ifft_results, FFT_SIZE, 
+                    convoluted_signal,
+                    generated_signal_length - 1,
+                    FFT_SIZE);
+
+
+                float32_t conv_max = 0;
+                uint32_t conv_max_index = 0;
+                // find the maximum index of the convoluted signal
+                arm_max_f32(convoluted_signal, convoluted_signal_length, &conv_max, &conv_max_index);
+                float32_t time_of_flight = calculate_time_from_bucket(conv_max_index);
+                float32_t distance = calculate_distance(time_of_flight);
+                
+                Cy_SysLib_Delay(100);
+                //printf("Time of flight: %f\n", time_of_flight);
+                printf("Distance: %f\n", distance);
+                printf("Max Index: %d\n", conv_max_index);
+
+                #ifdef DEBUG
+                // print_arrays(audio_frame_f32_to_print, fft_to_print, filtered_fft_to_print, ifft_results);
+
+                /*
+                // RAW AUDIO
+                printf("A,");
+                print_array(audio_frame_f32_to_print, FFT_SIZE);
+
+                // FFT output
+                printf("T,");
+                for (int i = 0; i < MAGNITUDES_SIZE; i++) {
+                    printf("%f,", fft_magnitudes[i]);
+                }
+                printf("\n");
+
+                // Filtered FFT
+                printf("F,");
+                for (int i = 0; i < MAGNITUDES_SIZE; i++) {
+                    printf("%f,", filtered_magnitudes[i]);
+                }
+                printf("\n");
+
+
+                // IFFT signal
+                printf("I,");
+                print_array(ifft_results, FFT_SIZE);
+                
+
+                // Convoluted signal
+                printf("C,");
+                print_array(convoluted_signal, 1024);
+                */
+                
+                #endif
+                // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
+
+                // SEND_IPC_MSG(IPC_END_R);
+            }
+        
         msg_cmd = 0;
         }
     }

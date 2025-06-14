@@ -15,7 +15,7 @@ SENT_RATE = 44000
 SAMPLING_RATE = 96000
 FRAME_LENGTH = 1024
 
-ser = serial.Serial('/dev/tty.usbmodem103', 115200, timeout=1)
+ser = serial.Serial('/dev/tty.usbmodem2103', 115200, timeout=1)
 
 sns.set_theme(style="darkgrid")
 root = tk.Tk()
@@ -46,7 +46,7 @@ axs[1].set_ylim(-5, 250)
 axs[2].set_xlim(-10, 44000)
 axs[2].set_ylim(-5, 250)
 axs[3].set_xlim(-1, 1040)
-axs[3].set_ylim(0, 1)
+axs[3].set_ylim(-1, 10)
 
 
 def update_plot():
@@ -83,11 +83,10 @@ def update_plot():
                     help_array = np.append(data_array, np.zeros(513))
                     lines[2].set_ydata(help_array)
                 case 'I': # inverded filtered signal
-                    lines[3].set_ydata(data_array)
-                    continue
+                    lines[2].set_ydata(data_array)
+                    #continue
                 case 'C': # convoluted signal
-                    continue
-                    #lines[3].set_ydata(data_array)
+                    lines[3].set_ydata(data_array)
                 case _:
                     continue
 

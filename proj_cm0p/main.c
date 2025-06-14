@@ -75,7 +75,6 @@ static void cm0p_msg_callback(uint32_t *msg);
 
 void sendBurst(uint8_t length)
 {
-    SEND_IPC_MSG(IPC_START_S);
 
     for (uint8_t i = 0; i < length; i++)
     {
@@ -87,7 +86,8 @@ void sendBurst(uint8_t length)
         Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 0UL);
         Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 1UL);
     }
-    
+
+    SEND_IPC_MSG(IPC_START_S);   
 }
 
 int main(void)
@@ -119,7 +119,7 @@ int main(void)
     for (;;)
     {
         sendBurst(5);
-        //Cy_SysLib_Delay(100);
+        Cy_SysLib_Delay(1000); 
     }
 }
 
