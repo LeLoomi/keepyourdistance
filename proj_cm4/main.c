@@ -379,8 +379,8 @@ static void filter_fft(float32_t *complex_array, uint32_t bandwidth,
     const uint32_t upper_index = bucket_index + r;
     const uint32_t lower_index = bucket_index - r;
 
-    printf("Bucket index: %lu, Lower index: %lu, Upper index: %lu, Sent frequency: %lu, Sample rate: %lu, Bandwidth: %lu, Bucket width: %lu\n", 
-        bucket_index, lower_index, upper_index, sent_frequency, sample_rate, bandwidth, bucket_width);
+    //printf("Bucket index: %lu, Lower index: %lu, Upper index: %lu, Sent frequency: %lu, Sample rate: %lu, Bandwidth: %lu, Bucket width: %lu\n", 
+        //bucket_index, lower_index, upper_index, sent_frequency, sample_rate, bandwidth, bucket_width);
 
     for (uint32_t i = 2; i <= FFT_SIZE - 2; i += 2) {
         // set everything to 0 that is outside of our bandwidth
@@ -594,7 +594,7 @@ int main(void)
                     #ifdef DEBUG
                     // print_arrays(audio_frame_f32_to_print, fft_to_print, filtered_fft_to_print, ifft_results);
 
-                    /*
+                    
                     // RAW AUDIO
                     printf("A,");
                     print_array(audio_frame_f32_to_print, FFT_SIZE);
@@ -616,7 +616,6 @@ int main(void)
                     // IFFT signal
                     printf("I,");
                     print_array(ifft_results, FFT_SIZE);
-                    */
 
                     // Convoluted signal
                     printf("C,");

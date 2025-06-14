@@ -42,21 +42,11 @@ for ax, title in zip(axs, titles):
 
 
 axs[1].set_xlim(-10, 44000)
-axs[1].set_ylim(-5, 100)
+axs[1].set_ylim(-5, 250)
 axs[2].set_xlim(-10, 44000)
-axs[2].set_ylim(-5, 100)
+axs[2].set_ylim(-5, 250)
 axs[3].set_xlim(-1, 1040)
-axs[3].set_ylim(0, 10)
-
-def important_function(fft_data_array):
-    bucket_width = (SAMPLING_RATE/2)/FRAME_LENGTH
-
-    if fft_data_array[np.floor(SENT_RATE/bucket_width)] > 50:
-        return fft_data_array
-    else:
-        return np.zeros(1024)
-
-
+axs[3].set_ylim(0, 1)
 
 
 def update_plot():
@@ -84,7 +74,6 @@ def update_plot():
                     lines[1].set_xdata(x_freq)
 
                     help_array = np.append(data_array, np.zeros(513))
-                    important_function(help_array)
                     lines[1].set_ydata(help_array)
                 case 'F': # filtered signal
                     x_values = np.linspace(0, FRAME_LENGTH, FRAME_LENGTH)
@@ -94,10 +83,11 @@ def update_plot():
                     help_array = np.append(data_array, np.zeros(513))
                     lines[2].set_ydata(help_array)
                 case 'I': # inverded filtered signal
-                    #lines[3].set_ydata(data_array)
+                    lines[3].set_ydata(data_array)
                     continue
                 case 'C': # convoluted signal
-                    lines[3].set_ydata(data_array)
+                    continue
+                    #lines[3].set_ydata(data_array)
                 case _:
                     continue
 
