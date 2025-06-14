@@ -266,13 +266,13 @@ static void cm4_msg_callback(uint32_t *msg)
 static uint32_t generate_sent_signal(uint32_t f_sent, uint32_t f_sample, uint32_t bursts, 
     float32_t *output_signal, uint32_t max_output_length) {
     /* the signal lasts bursts / f_sent, this is then mutliplied with f_sample to get the amount of samples in that signal */
-    uint32_t sample_count =  (uint32_t) (bursts * (float32_t) f_sample / (float32_t) f_sent);
+    uint32_t sample_count =  (uint32_t) (2 * bursts * (float32_t) f_sample / (float32_t) f_sent);
 
     assert(sample_count <= max_output_length); 
 
     for (uint32_t i = 0; i < sample_count; i++) {
         // generates an alternating 1 and 0 signal
-        output_signal[i] = (uint32_t) (i * (float32_t) f_sample/ (float32_t) f_sent / 2.0f + 1) % 2;
+        output_signal[i] = (uint32_t) (i * (float32_t) f_sent / (float32_t) f_sample + 1) % 2;
     }
 
     return sample_count;
