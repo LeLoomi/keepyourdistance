@@ -48,6 +48,34 @@ axs[2].set_ylim(-5, 250)
 axs[3].set_xlim(-1, 1040)
 axs[3].set_ylim(-1, 10)
 
+def rfft_on_data(data_array):
+    return np.fft.rfft(data_array)
+
+# applies a bandpass filter on frequency domain
+# input is an array of amplitudes for the frequencies resulting from a RFFT and the bandwidth around the SENT_RATE that is kept
+def bandpass_filter(amplitudes, bandwidth):
+    frequencies = np.fft.rfftfreq(len(amplitudes), d=1/SAMPLING_RATE)
+    filtered_amplitudes = np.zeros_like(amplitudes)
+
+    for i, freq in enumerate(frequencies):
+        if (freq > (SENT_RATE - bandwidth/2)) and (freq < (SENT_RATE + bandwidth/2)):
+            filtered_amplitudes[i] = amplitudes[i]
+
+    return filtered_amplitudes
+
+def ifft_on_data(data_array):
+    return np.fft.irfft(data_array)
+
+
+def data_processing(data_array):
+    rfft_data = rfft_on_data(data_array)
+    filtered_data = bandpass_filter(rfft_data, 1000)
+    ifft_data = ifft_on_data(filtered_data)
+
+    # TODO: print all the different data arrays for debugging
+
+    # we should pause here, we want to see only one pulse drawn at a time
+    input("Pause here...")
 
 def update_plot():
     try:
@@ -67,6 +95,7 @@ def update_plot():
 
             match array_type:
                 case 'A': # raw audio signal
+                    data_processing(data_array)
                     lines[0].set_ydata(data_array)
                 case 'T': # FFT transformed signal
                     x_values = np.linspace(0, FRAME_LENGTH, FRAME_LENGTH)
