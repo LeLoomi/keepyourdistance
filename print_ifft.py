@@ -15,6 +15,9 @@ SENT_RATE = 44000
 SAMPLING_RATE = 96000
 FRAME_LENGTH = 1024
 
+global iteration 
+iteration = 0 
+
 ser = serial.Serial('/dev/tty.usbmodem2103', 115200, timeout=1)
 
 sns.set_theme(style="darkgrid")
@@ -29,24 +32,21 @@ canvas = FigureCanvasTkAgg(fig, master=root)
 canvas.get_tk_widget().pack()
 
 # Set titles/labels
-titles = ["Raw Signal", "Fourier Transformed Signal","Filtered Signal FFT", "Filtered Signal"]
+titles = ["Raw Signal", "FFT","Filtered FFT", "Convoluted Signal"]
 
 
 lines = []
 for ax, title in zip(axs, titles):
-    ax.set_title(title)
-    ax.set_ylabel("Amplitude")
-    ax.set_ylim(-0.1,1)
+    #ax.set_title(title)
+    ax.set_ylabel(title)
+    ax.set_ylim(-0.1, 1.2)
     line, = ax.plot(np.zeros(FRAME_LENGTH))
     lines.append(line)
 
-
+axs[0].set_xlim(-1, 1040)
 axs[1].set_xlim(-10, 44000)
-axs[1].set_ylim(-5, 250)
 axs[2].set_xlim(-10, 44000)
-axs[2].set_ylim(-5, 250)
 axs[3].set_xlim(-1, 1040)
-axs[3].set_ylim(-1, 10)
 
 def rfft_on_data(data_array):
     return np.fft.rfft(data_array)
@@ -77,6 +77,16 @@ def data_processing(data_array):
     # we should pause here, we want to see only one pulse drawn at a time
     input("Pause here...")
 
+def normalize(array, coef = 0):
+    min_value = np.min(array)
+    max_value = np.max(array)
+    if coef == 0:
+        coef = (max_value - min_value)
+    for i in range(len(array)):
+        array[i] = (array[i] - min_value)/ coef
+
+    return coef, array
+
 def update_plot():
     try:
         while ser.in_waiting:
@@ -92,6 +102,8 @@ def update_plot():
                 data_array = np.array(float_list)
             except ValueError:
                 continue
+
+            _, data_array = normalize(data_array)
 
             match array_type:
                 case 'A': # raw audio signal
@@ -112,10 +124,17 @@ def update_plot():
                     help_array = np.append(data_array, np.zeros(513))
                     lines[2].set_ydata(help_array)
                 case 'I': # inverded filtered signal
-                    lines[2].set_ydata(data_array)
-                    #continue
+                    #lines[2].set_ydata(data_array)
+                    continue
                 case 'C': # convoluted signal
-                    lines[3].set_ydata(data_array)
+                    if iteration == 0:
+                        coef, data_array = normalize(data_array[40:])
+                        iteration = 1
+                    else:
+                        _, data_array = normalize(data_array[40:], coef)
+
+                    help_array = np.append(np.zeros(40), data_array)
+                    lines[3].set_ydata(help_array)
                 case _:
                     continue
 
