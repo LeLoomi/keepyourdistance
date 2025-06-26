@@ -11,14 +11,16 @@ from tkinter import ttk
 
 # Parameters
 SPEED_OF_SOUND = 343  
-SENT_RATE = 44000
+SENT_RATE = 45500
 SAMPLING_RATE = 96000
 FRAME_LENGTH = 1024
+PYTHON_PROCESSING = False
+BURST_CYCLES = 5
 
-global iteration 
-iteration = 0 
+iteration = True
+coef = 0
 
-ser = serial.Serial('/dev/tty.usbmodem2103', 115200, timeout=1)
+ser = serial.Serial('/dev/tty.usbmodem103', 115200, timeout=1)
 
 sns.set_theme(style="darkgrid")
 root = tk.Tk()
@@ -49,7 +51,7 @@ axs[2].set_xlim(-10, 44000)
 axs[3].set_xlim(-1, 1040)
 
 def rfft_on_data(data_array):
-    return np.fft.rfft(data_array)
+    return  np.abs(np.fft.rfft(data_array))
 
 # applies a bandpass filter on frequency domain
 # input is an array of amplitudes for the frequencies resulting from a RFFT and the bandwidth around the SENT_RATE that is kept
@@ -67,15 +69,27 @@ def ifft_on_data(data_array):
     return np.fft.irfft(data_array)
 
 
+def convolute_data(data_array):
+    n = 2
+    one_cycle = np.concatenate([np.ones(n), np.zeros(n)])
+    burst_pattern = np.tile(one_cycle, BURST_CYCLES)
+
+    return np.convolve(data_array, burst_pattern, mode='same')
+
+
+
 def data_processing(data_array):
     rfft_data = rfft_on_data(data_array)
-    filtered_data = bandpass_filter(rfft_data, 1000)
+    filtered_data = bandpass_filter(rfft_data, 5000)
     ifft_data = ifft_on_data(filtered_data)
+    conv_data = convolute_data(data_array)
+
+    return [rfft_data, filtered_data, ifft_data, conv_data]
 
     # TODO: print all the different data arrays for debugging
 
     # we should pause here, we want to see only one pulse drawn at a time
-    input("Pause here...")
+    # input("Pause here...")
 
 def normalize(array, coef = 0):
     min_value = np.min(array)
@@ -87,7 +101,13 @@ def normalize(array, coef = 0):
 
     return coef, array
 
+
+
+rfft_data, filtered_data, ifft_data, conv_data = np.zeros(1024), np.zeros(1024), np.zeros(1024), np.zeros(1024)
+
 def update_plot():
+    global iteration, coef, rfft_data, filtered_data, ifft_data, conv_data
+
     try:
         while ser.in_waiting:
             line = ser.readline().decode('utf-8', errors='ignore').strip()
@@ -103,37 +123,59 @@ def update_plot():
             except ValueError:
                 continue
 
-            _, data_array = normalize(data_array)
 
             match array_type:
                 case 'A': # raw audio signal
-                    data_processing(data_array)
+                    # data_array = data_processing(data_array)
+                    _, data_array = normalize(data_array)
                     lines[0].set_ydata(data_array)
+
+                    if PYTHON_PROCESSING:
+                        [rfft_data, filtered_data, ifft_data, conv_data] = data_processing(data_array)
+
                 case 'T': # FFT transformed signal
+                    if PYTHON_PROCESSING:
+                        data_array = rfft_data
+
+                    _, data_array = normalize(data_array)
                     x_values = np.linspace(0, FRAME_LENGTH, FRAME_LENGTH)
                     x_freq = x_values * (SAMPLING_RATE/len(data_array))
-                    lines[1].set_xdata(x_freq)
 
-                    help_array = np.append(data_array, np.zeros(513))
+                    help_array = np.zeros(1024)
+                    help_array[:len(data_array)] = data_array
+
+                    lines[1].set_xdata(x_freq)
                     lines[1].set_ydata(help_array)
+
                 case 'F': # filtered signal
+                    if PYTHON_PROCESSING:
+                        data_array = filtered_data
+
+                    _, data_array = normalize(data_array)
+
                     x_values = np.linspace(0, FRAME_LENGTH, FRAME_LENGTH)
                     x_freq = x_values * (SAMPLING_RATE/len(data_array))
                     lines[2].set_xdata(x_freq)
 
-                    help_array = np.append(data_array, np.zeros(513))
+                    help_array = np.zeros(1024)
+                    help_array[:len(data_array)] = data_array
                     lines[2].set_ydata(help_array)
                 case 'I': # inverded filtered signal
                     #lines[2].set_ydata(data_array)
                     continue
                 case 'C': # convoluted signal
-                    if iteration == 0:
+                    if PYTHON_PROCESSING:
+                        data_array = conv_data
+
+
+                    if iteration:
                         coef, data_array = normalize(data_array[40:])
-                        iteration = 1
+                        iteration = False
                     else:
                         _, data_array = normalize(data_array[40:], coef)
 
-                    help_array = np.append(np.zeros(40), data_array)
+                    help_array = np.zeros(1024)
+                    help_array[:len(data_array)] = data_array
                     lines[3].set_ydata(help_array)
                 case _:
                     continue

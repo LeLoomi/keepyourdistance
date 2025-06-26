@@ -166,7 +166,7 @@ static volatile uint8_t msg_cmd = 0;
  * @brief Frequency of the sent signal
  * 
  */
-#define SIGNAL_FREQUENCY_HZ         41600u      // 41.6 kHz
+#define SIGNAL_FREQUENCY_HZ         45500u      // 41.6 kHz
 
 
 /**
@@ -538,16 +538,35 @@ int main(void)
     for(;;)
     {
         switch (msg_cmd) {
-            case IPC_START_S:    
+            case IPC_START_S:  
+                cyhal_pdm_pcm_clear(&pdm_pcm);  
                 printf("\nSTART_S\n");
                 /* Check if any microphone has data to process */
-                if (pdm_pcm_flag) 
-                {
+                // if (pdm_pcm_flag) 
+                // {
                 /* Clear the PDM/PCM flag */
+
+
+                /* Setup to read the next frame */          
+
+                /* 
+                uint32_t total_read_audio_frames = 0;
+                while (total_read_audio_frames < 1024) {
+                    uint32_t read_audio_frames = FRAME_SIZE - total_read_audio_frames;
+                    cyhal_pdm_pcm_read(&pdm_pcm, audio_frame+total_read_audio_frames, &read_audio_frames);
+                    total_read_audio_frames += read_audio_frames;
+                } 
+                */
+
+                // reset the flag to zero
                 pdm_pcm_flag = 0;
 
-                /* Setup to read the next frame */            
+                // do busy wait
                 cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
+                Cy_SysLib_Delay(10);
+
+                while (pdm_pcm_flag == 0) {}
+
  
                 // Convert to 32-bit float
 
@@ -616,18 +635,18 @@ int main(void)
                 uint32_t conv_max_index = 0;
                 // find the maximum index of the convoluted signal
                 arm_max_f32(convoluted_signal, convoluted_signal_length, &conv_max, &conv_max_index);
-                float32_t time_of_flight = calculate_time_from_bucket(conv_max_index);
+                float32_t time_of_flight = calculate_time_from_bucket(conv_max_index - generated_signal_length);
                 float32_t distance = calculate_distance(time_of_flight);
                 
-                Cy_SysLib_Delay(100);
+                
                 //printf("Time of flight: %f\n", time_of_flight);
                 printf("Distance: %f\n", distance);
-                printf("Max Index: %d\n", conv_max_index);
+                // printf("Max Index: %d\n", conv_max_index);
 
                 #ifdef DEBUG
                 // print_arrays(audio_frame_f32_to_print, fft_to_print, filtered_fft_to_print, ifft_results);
 
-                /*
+                
                 // RAW AUDIO
                 printf("A,");
                 print_array(audio_frame_f32_to_print, FFT_SIZE);
@@ -655,13 +674,13 @@ int main(void)
                 // Convoluted signal
                 printf("C,");
                 print_array(convoluted_signal, 1024);
-                */
+                
                 
                 #endif
                 // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);
 
                 // SEND_IPC_MSG(IPC_END_R);
-            }
+            //}
         
         msg_cmd = 0;
         }
