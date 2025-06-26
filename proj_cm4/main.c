@@ -275,7 +275,7 @@ static uint32_t generate_sent_signal(uint32_t f_sent, uint32_t f_sample, uint32_
 
     for (uint32_t i = 0; i < sample_count; i++) {
         // generates an alternating 1 and 0 signal
-        output_signal[i] = (uint32_t) (i * (float32_t) f_sent / (float32_t) f_sample + 1) % 2;
+        output_signal[i] = (uint32_t) (i * f_sample + 1) % 2;
     }
 
     return sample_count;
