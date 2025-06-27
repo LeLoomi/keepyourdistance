@@ -540,7 +540,7 @@ int main(void)
         switch (msg_cmd) {
             case IPC_START_S:  
                 cyhal_pdm_pcm_clear(&pdm_pcm);  
-                printf("\nSTART_S\n");
+                printf("\nS\n");
                 /* Check if any microphone has data to process */
                 // if (pdm_pcm_flag) 
                 // {
@@ -646,7 +646,7 @@ int main(void)
                 #ifdef DEBUG
                 // print_arrays(audio_frame_f32_to_print, fft_to_print, filtered_fft_to_print, ifft_results);
 
-                /*
+                
                 // RAW AUDIO
                 printf("A,");
                 print_array(audio_frame_f32_to_print, FFT_SIZE);
@@ -674,7 +674,7 @@ int main(void)
                 // Convoluted signal
                 printf("C,");
                 print_array(convoluted_signal, 1024);
-                */
+                
                 
                 #endif
                 // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);

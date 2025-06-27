@@ -4,7 +4,6 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import seaborn as sns
-import serial
 import tkinter as tk
 from tkinter import ttk
 
@@ -20,7 +19,7 @@ BURST_CYCLES = 5
 iteration = True
 coef = 0
 
-ser = serial.Serial('/dev/tty.usbmodem103', 115200, timeout=1)
+
 
 sns.set_theme(style="darkgrid")
 root = tk.Tk()
@@ -91,15 +90,7 @@ def data_processing(data_array):
     # we should pause here, we want to see only one pulse drawn at a time
     # input("Pause here...")
 
-def normalize(array, coef = 0):
-    min_value = np.min(array)
-    max_value = np.max(array)
-    if coef == 0:
-        coef = (max_value - min_value)
-    for i in range(len(array)):
-        array[i] = (array[i] - min_value)/ coef
 
-    return coef, array
 
 
 

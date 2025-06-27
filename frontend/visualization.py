@@ -8,8 +8,6 @@ from matplotlib import cm
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter as tk
-import threading
-import serial
 
 
 class AnimatedWaterfall:
@@ -32,7 +30,6 @@ class AnimatedWaterfall:
 
         self.ax3d.grid(True)
         self.fig.tight_layout()
-        self.ax3d.legend()
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)
         self.canvas_widget = self.canvas.get_tk_widget()
@@ -97,85 +94,3 @@ class AnimatedWaterfall:
         self.update_values(signal, sample_freq=sample_freq)
 
         self.canvas.draw()
-
-
-def animate(gui):
-    fs = 1000  # sampling frequency in Hz
-    t = np.linspace(0, 5, fs * 5)
-    for i in range(1, 1000, 10):      
-        signal = chirp(t, f0=10*i, f1=500, t1=5, method='linear')
-
-        gui.update_plot(signal, fs)
-
-
-def gather_data(gui):
-    # Parameters
-    SPEED_OF_SOUND = 343  
-    SENT_RATE = 44000
-    SAMPLING_RATE = 96000
-    FRAME_LENGTH = 1024
-
-    ser = serial.Serial('/dev/tty.usbmodem103', 115200, timeout=1)
-    raw_data = []
-    fft_data = []
-    filt_data = []
-    ifft_data = []
-    conv_data = []
-
-    try:
-        while ser.in_waiting:
-            line = ser.readline().decode('utf-8', errors='ignore').strip()
-            if not line or len(line) < 100:
-                continue
-
-            array_type = line[0]
-            data_string = line[2:]
-
-            try:
-                float_list = [float(x) for x in data_string.split(",") if x.strip()]
-                data_array = np.array(float_list)
-            except ValueError:
-                continue
-
-            match array_type:
-                case 'A': # raw audio signal
-                    raw_data.append(data_array)
-                    gui.update_plot(data_array, SAMPLING_RATE)
-                case 'T': # FFT transformed signal
-                    fft_data.append(data_array)
-                    # x_values = np.linspace(0, FRAME_LENGTH, FRAME_LENGTH)
-                    # x_freq = x_values * (SAMPLING_RATE/len(data_array))
-                    # lines[1].set_xdata(x_freq)
-
-                    # help_array = np.append(data_array, np.zeros(513))
-                    # lines[1].set_ydata(help_array)
-                case 'F': # filtered signal
-                    filt_data.append(data_array)
-                    # x_values = np.linspace(0, FRAME_LENGTH, FRAME_LENGTH)
-                    # x_freq = x_values * (SAMPLING_RATE/len(data_array))
-                    # lines[2].set_xdata(x_freq)
-
-                    # help_array = np.append(data_array, np.zeros(513))
-                    # lines[2].set_ydata(help_array)
-                case 'I': # inverded filtered signal
-                    ifft_data.append(data_array)
-                    # lines[3].set_ydata(data_array)
-                    continue
-                case 'C': # convoluted signal
-                    conv_data.append(data_array)
-                    continue
-                    #lines[3].set_ydata(data_array)
-                case _:
-                    continue
-
-    except Exception as e:
-        print("Fehler beim Lesen:", e)
-
-
-if __name__ == '__main__':
-    root = tk.Tk()
-    gui = AnimatedWaterfall(root)
-
-    threading.Thread(target=animate, args=(gui,), daemon=True).start()
-
-    root.mainloop()
