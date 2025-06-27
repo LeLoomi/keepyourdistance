@@ -37,7 +37,7 @@ With the signal now split up into frequencies and filtered we can apply the Inve
 ### Convolution
 A convolution is used to highlight the exact position of the sent signal in the time domain. The sent signal is known (5 bursts of High-Low) and is convoluted with the IFFT signal. This gives us a spike at the reception of the reflected signal.
 
-The 5 burst pattern make convoluting the signal less error prone as false positives are ruled out.
+The 5 burst pattern makes convoluting the signal less error prone as false positives are ruled out.
 
 ### Time of Flight / Distance Measurements
 The Time of Flight can be estimated by looking at the amount of samples that were received until the convolutional peak was observed. The reflection of the signal is guaranteed to be in the 1024 samples of the audio buffer. This can be shown with the capture time $t_{\text{Capture}}$ derived earlier and calculating the maximum distance sound can travel in this time
