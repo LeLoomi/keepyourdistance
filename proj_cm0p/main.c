@@ -78,11 +78,11 @@ void sendBurst(uint8_t length)
 
     for (uint8_t i = 0; i < length; i++)
     {
-        Cy_SysLib_DelayUs(11);
+        Cy_SysLib_DelayUs(12);
         Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 1UL);
         Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 0UL);
 
-        Cy_SysLib_DelayUs(11);
+        Cy_SysLib_DelayUs(12);
         Cy_GPIO_Write(CYBSP_PIEZO_0_PORT, CYBSP_PIEZO_0_PIN, 0UL);
         Cy_GPIO_Write(CYBSP_PIEZO_1_PORT, CYBSP_PIEZO_1_PIN, 1UL);
     }

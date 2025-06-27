@@ -166,7 +166,7 @@ static volatile uint8_t msg_cmd = 0;
  * @brief Frequency of the sent signal
  * 
  */
-#define SIGNAL_FREQUENCY_HZ         45500u      // 41.6 kHz
+#define SIGNAL_FREQUENCY_HZ         41666u      // 41.6 kHz
 
 
 /**
@@ -269,13 +269,13 @@ static void cm4_msg_callback(uint32_t *msg)
 static uint32_t generate_sent_signal(uint32_t f_sent, uint32_t f_sample, uint32_t bursts, 
     float32_t *output_signal, uint32_t max_output_length) {
     /* the signal lasts bursts / f_sent, this is then mutliplied with f_sample to get the amount of samples in that signal */
-    uint32_t sample_count =  (uint32_t) (2 * bursts * (float32_t) f_sample / (float32_t) f_sent);
+    uint32_t sample_count =  (uint32_t) (2 * bursts);
 
     assert(sample_count <= max_output_length); 
 
     for (uint32_t i = 0; i < sample_count; i++) {
         // generates an alternating 1 and 0 signal
-        output_signal[i] = (uint32_t) (i * f_sample + 1) % 2;
+        output_signal[i] = (uint32_t) (i + 1) % 2;
     }
 
     return sample_count;
@@ -640,13 +640,13 @@ int main(void)
                 
                 
                 //printf("Time of flight: %f\n", time_of_flight);
-                printf("Distance: %f\n", distance);
+                printf("D, %f\n", distance);
                 // printf("Max Index: %d\n", conv_max_index);
 
                 #ifdef DEBUG
                 // print_arrays(audio_frame_f32_to_print, fft_to_print, filtered_fft_to_print, ifft_results);
 
-                
+                /*
                 // RAW AUDIO
                 printf("A,");
                 print_array(audio_frame_f32_to_print, FFT_SIZE);
@@ -674,7 +674,7 @@ int main(void)
                 // Convoluted signal
                 printf("C,");
                 print_array(convoluted_signal, 1024);
-                
+                */
                 
                 #endif
                 // printf("current time: %f\n", (float32_t) cyhal_timer_read(&fft_timer) / (float32_t) FFT_TIMER_HZ);

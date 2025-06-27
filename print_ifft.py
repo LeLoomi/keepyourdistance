@@ -11,7 +11,7 @@ from tkinter import ttk
 
 # Parameters
 SPEED_OF_SOUND = 343  
-SENT_RATE = 45500
+SENT_RATE = 41666
 SAMPLING_RATE = 96000
 FRAME_LENGTH = 1024
 PYTHON_PROCESSING = False
@@ -167,16 +167,13 @@ def update_plot():
                     if PYTHON_PROCESSING:
                         data_array = conv_data
 
-
-                    if iteration:
-                        coef, data_array = normalize(data_array[40:])
-                        iteration = False
-                    else:
-                        _, data_array = normalize(data_array[40:], coef)
+                    _, data_array = normalize(data_array[40:], coef)
 
                     help_array = np.zeros(1024)
                     help_array[:len(data_array)] = data_array
                     lines[3].set_ydata(help_array)
+                case 'D':
+                    print(data_array)
                 case _:
                     continue
 
