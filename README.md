@@ -1,10 +1,12 @@
 # Prototype for Blood Pressure Measuring
-This prototype was created in the context of the Telekom MMS Health Hackathon for the estimation of blood pressure by using sound emissions.
+This prototype was created in the context of the Telekom MMS Health Hackathon for the estimation of blood pressure by using high frequency acoustic signals.
 
 ## Motivation
-Blood pressure measurements were done with complicated devices that require time and a cuff around the arm. Recently smarter devices have emerged on the market that measure the blood pressure by utilizing light (PPG). This approach is more prone to error, so a need for a better methodology arises.
+Blood pressure measurements once needed the daily use of cuffs. In the last decades smarter devices have emerged on the market that measure the blood pressure by utilizing light to track changes in the blood volume, a so called Photoplethysmogram (PPG). This approach is quicker but more susceptible to error and requires monthly calibration so a need for a better methodology arises.
 
-Blood pressure measurements can be done with sound to calculate the thickness of the artery. The actual measurements in tissue require a higher frequency in the MHz range. This is unfeasible with our current equipment that operates in the KHz frequency. The idea is to develop a prototype that is capable of distance measurements in air using a microphone and a piezo element for sound emission.
+Blood pressure measurements can be done with high frequency sound to calculate the thickness of the arteries and blood volume. With this method the calibration needs to be done only once a year. 
+
+The actual measurements in tissue require a higher frequency of sound in the MHz range. This isn't feasible with our current equipment that operates in the kHz range. The idea is to develop a prototype that is capable of distance measurements in air using a microphone and a piezo element for sound emissions.
 
 ## Idea
 To calculate the distance to the wall, we utilize Time of Flight (ToF) measurements. This can be done by emitting a signal at a certain frequency (41.6 kHz) and listening for the reflection of said frequency with the microphone. Knowing the point of sending we can then infer the ToF for the signal to the wall and back, divide it by 2 and combine it with the speed of sound (approx. 343 m/s) to get an accurate distance to the wall. 
