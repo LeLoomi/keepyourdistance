@@ -19,10 +19,10 @@ The PSoC runs with a C program that can be flashed on the chip with Infineon's M
 Sending the 41.6 kHz is rather simple but is done in 5 bursts to facilitate later steps. The actual computationally heavy task is processing the incoming signal, filtering it and turning it into a form that allows ToF measurements. 
 
 ### Raw Signal
-First of all, the signal is captured by the microphone at a frequency of 96 kHz. For the extraction of the data into the program 1024 samples are taken at once from the microphone. With the 96 kHz that equates to a total capture time $t$ for 1024 samples
+First of all, the signal is captured by the microphone at a frequency of 96 kHz. For the extraction of the data into the program 1024 samples are taken at once from the microphone. With the 96 kHz that equates to a total capture time $t_\text{Capture}$ for 1024 samples
 
 $$
-t = \frac{\text{Sample Count}}{\text{Sample Rate}} = \frac{1024}{96000 Hz} \approx 11 ms.
+t_{\text{Capture}} = \frac{\text{Sample Count}}{\text{Sample Rate}} = \frac{1024}{96000 Hz} \approx 11 ms.
 $$
 
 ### Fast Fourier Transformation
@@ -40,9 +40,15 @@ A convolution is used to highlight the exact position of the sent signal in the 
 The 5 burst pattern make convoluting the signal less error prone as false positives are ruled out.
 
 ### Time of Flight / Distance Measurements
-The Time of Flight can be estimated by looking at the amount of samples that were received until the convolutional peak was observed. The reflection of the signal is guaranteed to be in the 1024 samples of the audio buffer. 
+The Time of Flight can be estimated by looking at the amount of samples that were received until the convolutional peak was observed. The reflection of the signal is guaranteed to be in the 1024 samples of the audio buffer. This can be shown with the capture time $t_{\text{Capture}}$ derived earlier and calculating the maximum distance sound can travel in this time
 
-So the sample that contains the peak in the convolution is the one that can be used for time calculation. This give us
+$$
+\text{Max Distance} = \text{Speed of Sound} \times t_{\text{Capture}} = 343 m/s \times 11 ms = 3.7 m.
+$$
+
+For measurements below 3.5 meters the sent signal is guaranteed to be inside the 1024 audio samples (Note: the effective distance that can be measured with our method is way below this value because of scatter).
+
+The sample that contains the peak in the convolution is the one that can be used for time calculation. This give us
 
 $$
 \text{ToF} = \frac{\text{Sample Number}}{\text{96000 Hz}}.
