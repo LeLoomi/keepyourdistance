@@ -11,6 +11,8 @@ The actual measurements in tissue require a higher frequency of sound in the MHz
 ## Idea
 To calculate the distance to the wall, we utilize Time of Flight (ToF) measurements. This can be done by emitting a signal at a certain frequency (41.6 kHz) and listening for the reflection of said frequency with the microphone. Knowing the point of sending we can then infer the ToF for the signal to the wall and back, divide it by 2 and combine it with the speed of sound (approx. 343 m/s) to get an accurate distance to the wall. 
 
+![Experiment Setup](images/block_diagram.png)
+
 ## Hardware
 For our prototype we have a PSoC 6 AI from Infineon. The PSoC possesses a microphone for sampling up to 96 kHz. For our sound emission a piezo element is used, that is controlled by 2 GPIO pins.
 
