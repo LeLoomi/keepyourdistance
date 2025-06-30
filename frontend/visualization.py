@@ -13,7 +13,7 @@ import tkinter as tk
 class AnimatedWaterfall:
     def __init__(self, root):
         self.root = root
-        self.root.title("Animated Waterfall Plot")
+        self.root.title("Distance Measurement")
 
         self.fig = plt.figure(figsize=(14, 6))
         self.ax3d = self.fig.add_subplot(121, projection='3d')
@@ -56,6 +56,9 @@ class AnimatedWaterfall:
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)
         self.canvas_widget = self.canvas.get_tk_widget()
         self.canvas_widget.pack(fill=tk.BOTH, expand=True)
+
+        self.text_obj = self.fig.text(0.05, 0.05, "Distance: -- cm", fontsize=20, ha='left', va='center')
+
 
     def update_values3d(self, signal, sample_freq):
         signal_len = len(signal)
@@ -132,12 +135,13 @@ class AnimatedWaterfall:
             self.plot_conv.set_ydata(conv)
 
 
-    def update_plot(self, signal, freq, fft, conv, sample_freq):
+    def update_plot(self, signal, freq, fft, conv, sample_freq, distance):
         # calculate and update plot related values
         self.update_values3d(signal, sample_freq=sample_freq)
         self.update_values_raw(signal)
         self.update_values_fft(fft, freq)
         self.update_values_conv(conv)
+        self.text_obj.set_text("Distance: " + str(distance) + " cm")
 
         self.canvas.draw()
         self.init = False

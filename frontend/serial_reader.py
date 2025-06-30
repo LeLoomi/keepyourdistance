@@ -3,6 +3,7 @@ import glob
 import serial
 import numpy as np
 import time
+import sys
 
 from data_processing import data_processing
 
@@ -19,42 +20,6 @@ FRAME_LENGTH = 1024
 PLOT_OFFSET = 2
 
 
-def get_port():
-    """ Lists serial port names
-
-        :raises EnvironmentError:
-            On unsupported or unknown platforms
-        :returns:
-            A list of the serial ports available on the system if some ports to listen to are available
-            otherwise return None
-    """
-    if sys.platform.startswith('win'):
-        # windows
-        ports = ['COM%s' % (i + 1) for i in range(256)]
-    elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
-        # linux
-        # this excludes your current terminal "/dev/tty"
-        ports = glob.glob('/dev/tty[A-Za-z]*')
-    elif sys.platform.startswith('darwin'):
-        # mac os x
-        ports = glob.glob('/dev/tty.*')
-    else:
-        raise EnvironmentError('Unsupported platform')
-
-    result = []
-    for port in ports:
-        try:
-            s = serial.Serial(port)
-            s.close()
-            result.append(port)
-            print(port)
-        except (OSError, serial.SerialException):
-            pass
-    if len(result):
-        return result[0]
-    return None
-
-
 def normalize(array, coef = 0):
     min_value = np.min(array)
     max_value = np.max(array)
@@ -67,11 +32,10 @@ def normalize(array, coef = 0):
 
 
 def get_data(gui):
-    port = get_port()
-    if port is None:
-        port = '/dev/tty.usbmodem103'
+    # set your port here!
+    port = "/dev/tty.usbmodem103"
 
-    ser = serial.Serial('COM5', 115200, timeout=1)
+    ser = serial.Serial(port, 115200, timeout=1)
 
     distance_array = []
     
@@ -94,24 +58,23 @@ def get_data(gui):
                                         psoc_data_array[cycle % DATA_BUFFER_SIZE, 1, :], 
                                         psoc_data_array[cycle % DATA_BUFFER_SIZE, 2, :],
                                         psoc_data_array[cycle % DATA_BUFFER_SIZE, 6, :],
-                                        SAMPLING_RATE)   
+                                        SAMPLING_RATE,
+                                        distance_array[-1])   
                     cycle += 1  
                 start_var = True
 
 
             if len(line) < 5:
                 continue
-
-            print(line[:2])
             
             data_type = line[0]
-            print(data_type)
             data_string = line[2:]
 
             try:
                 if start_var:
                     if data_type in ['D']:
-                        d = float(data_string)
+                        d = round((float(data_string) - 0.1) * 100,2)
+                        print(str(d) + " cm")
                         distance_array.append(d)
                     if data_type in ['A', 'T', 'F', 'I', 'C']:
                         data_array = np.array([float(x) for x in data_string.split(",") if x.strip()])
@@ -167,7 +130,7 @@ def get_data(gui):
     
 
     except Exception as e:
-            print("Error while reading the serial port:", e)
+            print(e)
 
     print("ENDING... UNREACHABLE")
     
