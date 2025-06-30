@@ -71,7 +71,7 @@ def get_data(gui):
     if port is None:
         port = '/dev/tty.usbmodem103'
 
-    ser = serial.Serial('/dev/tty.usbmodem103', 115200, timeout=1)
+    ser = serial.Serial('COM5', 115200, timeout=1)
 
     distance_array = []
     
@@ -92,6 +92,7 @@ def get_data(gui):
                     if cycle >= 1:
                         gui.update_plot(psoc_data_array[cycle % DATA_BUFFER_SIZE, 0, :], 
                                         psoc_data_array[cycle % DATA_BUFFER_SIZE, 1, :], 
+                                        psoc_data_array[cycle % DATA_BUFFER_SIZE, 2, :],
                                         psoc_data_array[cycle % DATA_BUFFER_SIZE, 6, :],
                                         SAMPLING_RATE)   
                     cycle += 1  
@@ -156,7 +157,7 @@ def get_data(gui):
                             padded_array = np.zeros(1024)
                             padded_array[:len(norm_data_array)] = norm_data_array
 
-                            psoc_data_array[cycle % DATA_BUFFER_SIZE, 6, :] = x_freq
+                            psoc_data_array[cycle % DATA_BUFFER_SIZE, 6, :] = padded_array
                                                     
                         case _:
                             continue

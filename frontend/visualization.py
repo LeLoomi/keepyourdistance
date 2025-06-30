@@ -32,12 +32,23 @@ class AnimatedWaterfall:
 
         # ---------------------
         self.ax1 = self.fig.add_subplot(322)
+        self.ax1.set_ylabel('Amplitude [dB]')
+        self.ax1.set_xlabel('Time [s]')
+        self.ax1.set_title('Raw Signal')
         self.raw_values = []
         # ---------------------
         self.ax2 = self.fig.add_subplot(324)
+        self.ax2.set_ylabel('Magnitude')
+        self.ax2.set_xlabel('Frequency [Hz]')
+        self.ax2.set_title('FFT')
+        self.ax2.set_xlim(0, 50000)
+        self.ax2.vlines(x=[41600-3000, 41600+3000], ymin=0, ymax=1, colors=['tab:orange', 'tab:orange'], ls='--', lw=2, alpha=0.5)
         self.fft_values = []
         # ---------------------
         self.ax3 = self.fig.add_subplot(326)
+        self.ax3.set_ylabel('Amplitude [dB]')
+        self.ax3.set_xlabel('Time [s]')
+        self.ax3.set_title('Convolution')
         self.conv_values = []
 
         self.fig.tight_layout()
@@ -55,6 +66,7 @@ class AnimatedWaterfall:
                                         nperseg=nperseg, noverlap=noverlap)
         Sxx_dB = 10 * np.log10(Sxx + 1e-10)  # avoid log(0)
         # normalize amplitudes
+        Sxx_dB = (Sxx_dB - np.min(Sxx_dB)) / (np.max(Sxx_dB) - np.min(Sxx_dB))
         norm = plt.Normalize(Sxx_dB.min(), Sxx_dB.max())
 
         if self.init:
@@ -100,31 +112,31 @@ class AnimatedWaterfall:
 
     def update_values_raw(self, signal):
         if self.init:
-            self.plot_raw,  = self.ax1.plot(range(len(signal)), signal)
+            self.plot_raw,  = self.ax1.plot(np.asarray(range(len(signal))) / 96000, signal)
         else:
-            self.plot_raw.set_xdata(range(len(signal)))
+            self.plot_raw.set_xdata(np.asarray(range(len(signal))) / 96000)
             self.plot_raw.set_ydata(signal)
         
-    def update_values_fft(self, fft):
+    def update_values_fft(self, fft, freq):
         if self.init:
-            self.plot_fft,  = self.ax2.plot(range(len(fft)), fft)
+            self.plot_fft,  = self.ax2.plot(freq, fft)
         else:
-            self.plot_fft.set_xdata(range(len(fft)))
+            self.plot_fft.set_xdata(freq)
             self.plot_fft.set_ydata(fft)
 
     def update_values_conv(self, conv):
         if self.init:
-            self.plot_conv, = self.ax3.plot(range(len(conv)), conv)
+            self.plot_conv, = self.ax3.plot(np.asarray(range(len(conv))) / 96000, conv)
         else:
-            self.plot_conv.set_xdata(range(len(conv)))
-            self.plot_conv.set_ydata(range(len(conv)))
+            self.plot_conv.set_xdata(np.asarray(range(len(conv))) / 96000)
+            self.plot_conv.set_ydata(conv)
 
 
-    def update_plot(self, signal, fft, conv, sample_freq):
+    def update_plot(self, signal, freq, fft, conv, sample_freq):
         # calculate and update plot related values
         self.update_values3d(signal, sample_freq=sample_freq)
         self.update_values_raw(signal)
-        self.update_values_fft(fft)
+        self.update_values_fft(fft, freq)
         self.update_values_conv(conv)
 
         self.canvas.draw()
