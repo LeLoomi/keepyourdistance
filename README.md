@@ -137,7 +137,9 @@ The actual distance contains a small but fixed offset caused by the experimantal
 The results from the signal processing are sent via serial (UART) to the host device.
 
 ## Python Visualization
-There is a python script available that captures the serial data and plots corresponding graphs. TODO: more stuff here
+There is a python script available that captures the serial data and plots corresponding graphs.
+
+![Python Plots](images/Animated_Waterfall_Plot.png)
 
 
 
