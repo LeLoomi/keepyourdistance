@@ -108,13 +108,12 @@ The 5 burst pattern makes convoluting the signal less error prone as false posit
 The convolution can be done with `arm_conv_partial_f32`. It takes the signal that we sent, which we generated earlier.
 
 ##### Time of Flight / Distance Measurements
-The Time of Flight can be estimated by looking at the amount of samples that were received until the convolutional peak was observed. The reflection of the signal is guaranteed to be in the 1024 samples of the audio buffer. This can be shown with the capture time $t_{\text{Capture}}$ derived earlier and calculating the maximum distance sound can travel in this time
-
+The Time of Flight can be estimated by looking at the amount of samples that were received until the convolutional peak was observed. The reflection of the signal is guaranteed to be in the 1024 samples of the audio buffer. This can be shown with the capture time $t_{\text{Capture}}$ derived earlier and calculating the maximum distance we can measure is half of the distance sound travels in $t_\text{Capture}$, therefore 
 $$
-\text{Max Distance} = \text{Speed of Sound} \cdot t_{\text{Capture}} = 343 \frac{m}{s} \cdot 11 ms = 3.7 m.
+\text{Max Distance} = \frac{\text{Speed of Sound} \cdot t_{\text{Capture}}}{2} = \frac{343 \frac{m}{s} \cdot 11 ms}{2} = 1.88 m.
 $$
 
-For measurements below 3.5 meters the sent signal is guaranteed to be inside the 1024 audio samples (Note: the effective distance that can be measured with our method is way below this value because of scatter).
+For measurements below 1.88 meters the sent signal is guaranteed to be inside the 1024 audio samples (Note: the effective distance that can be measured with our method is way below this value because of scatter).
 
 The sample that contains the peak in the convolution is the one that can be used for time calculation. This give us
 
