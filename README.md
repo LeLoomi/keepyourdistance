@@ -138,7 +138,7 @@ The results from the signal processing are sent via serial (UART) to the host de
 ## Python Visualization
 There is a python script available that captures the serial data and plots corresponding graphs.
 
-![Python Plots](images/Animated_Waterfall_Plot.png)
+![Python Plots](images/plots.jpg)
 
 
 
