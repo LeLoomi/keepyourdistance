@@ -2,11 +2,11 @@
 This prototype was created in the context of the Telekom MMS Health Hackathon for the measurement of blood pressure by using high frequency acoustic signals.
 
 ## Getting started...
-The setup is best tested on Windows and requires the ModusToolbox form Infineon. Our program can be flashed onto the PSoC by using the `make program` command. The piezo element needs to be connected to GPIO `0` and `1`.
+The setup is best tested on Windows and requires the ModusToolbox form Infineon. Our program can be flashed onto the PSoC by using the `make program` command. The Piezo element needs to be connected to GPIO `0` and `1`.
 
 For a visual representation of the incoming data a python script can be launched.
 
-The piezo element should be as close as possible to the upper left microphone, to fulfill the model assumption as well as possible.
+The Piezo element should be as close as possible to the upper left microphone, to fulfill the model assumption as well as possible.
 
 ## Motivation
 Blood pressure is one of the most important vital signs for monitoring a patient's general health. Specifically it is a biosignal indicating cardiovascular and circulatory health.
@@ -19,18 +19,19 @@ The PPG generally works by measuring the reflected and transmitted light that il
 This approach is very fast, but according to the FDA, the method requires calibration using a blood pressure cuff every month.
 
 
-A newer approach also proposed in the paper "Measurement of Blood Pressure by Ultrasound—The Applicability of Devices, Algorithms and a View in Local Hemodynamics" from Meusel et. al. is to use ultra sonic sound to messure the blood preasure.
+A newer approach also proposed in the paper "Measurement of Blood Pressure by Ultrasound—The Applicability of Devices, Algorithms and a View in Local Hemodynamics" from Meusel et. al. is to use ultra sonic sound to measure the blood pressure.
 You measure the thickness of the arteries in order to derive the blood volume flow. 
 As well as being a non-invasive, continuous approach, this method is expected to be more accurate, since it penetrates deeper tissue to measure thicker blood vessels with a smaller relative error.
-In the paper of ... they suggest a callibration frequncy of one year. 
+In the paper "Clinical validation of a wearable ultrasound
+sensor of blood pressure" of Zhou et al. they suggest a calibration frequency of one year. 
 
 
 The method of blood pressure measurements with ultra sound has already been tested with more capable hardware. Our novel approach tries to bring this method onto constrained devices. This offers more flexibility since battery-powered embedded devices can be carried around or attached to the body but also poses new challenges: constrained devices provide fewer hardware resources for the compute-heavy signal processing required for distance measurements. Our prototype aims to fill this niche.
 
 ## Experimental Setup 
 To calculate the distance to the wall, we utilize Time of Flight (ToF) of some self emitted audio signal.
-In our setup, a audio signal with the frequncy of 41.6 kHz gets emitted by an Piezo Element. Meanwhile the microphone (96kHz sampling rate) on the chip listens for exactly that emitted signal arraving back after the reflection of the wall.  
- Knowing the time of sending we can then derive the distance with the measured ToF - signal to wall and back and the speed of sound (average 343 m/s) to get an accurate distance to the wall. 
+In our setup, a audio signal with the frequency of 41.6 kHz gets emitted by an Piezo Element. Meanwhile the microphone (96kHz sampling rate) on the chip listens for exactly that emitted signal arriving back after the reflection of the wall.  
+Knowing the time of sending we can then derive the distance with the measured ToF - signal to wall and back and the speed of sound (average 343 m/s) to get an accurate distance to the wall. 
 
  $$ d(t) = \frac{t * 343 \frac{m}{s}}{2} $$
 
@@ -38,7 +39,7 @@ In our setup, a audio signal with the frequncy of 41.6 kHz gets emitted by an Pi
 
 ## PSoC 6
 ### Hardware
-For our prototype we have a "PSoC™ 6 Artificial Intelligence Evaluation Kit (CY8CKIT-062S2-AI)" from Infineon. The PSoC™ is equipped with a microphone capable of capturing audio up to 96 kHz. For our sound emission a piezo element is additionally attached, that is controlled by 2 GPIO pins.
+For our prototype we have a "PSoC™ 6 Artificial Intelligence Evaluation Kit (CY8CKIT-062S2-AI)" from Infineon. The PSoC™ is equipped with a microphone capable of capturing audio up to 96 kHz. For our sound emission a Piezo element is additionally attached, that is controlled by 2 GPIO pins.
 
 The PSoC 6 AI has a built-in Digital Signal Processor (DSP) that can take over most of the floating point signal processing tasks (FFT, IFFT, Convolution).
 
@@ -70,7 +71,7 @@ The real valued Fast Fourier Transformation (rFFT) is applied to turn the raw au
 The rFFT is performed with the ARM CMSIS DSP library function called `arm_rfft_fast_f32`.
 
 ##### Band Pass Filter
-The Band Pass Filter is applied in the former derived frequncy domain to filter all unwanted frequency that are not within a bandwidth around our previously sent frequency (41.6 kHz).
+The Band Pass Filter is applied in the former derived frequency domain to filter all unwanted frequency that are not within a bandwidth around our previously sent frequency (41.6 kHz).
 
 The band pass filter is done in a function `filter_fft` written by us, that simply sets all unwanted frequencies to 0. Most importantly, it takes the bandwidth as an argument.
 
@@ -103,7 +104,7 @@ All this is done in our function `generate_sent_signal`.
 ##### Convolution
 A convolution is used to highlight the exact position of the sent signal in the time domain. The sent signal is known (5 bursts of High/Low) and is convoluted with the filtered signal. This gives us a spike at the reception of the reflected signal.
 
-The 5 burst pattern makes convoluting the signal less error prone as false positives are ruled out and the timing more percise.
+The 5 burst pattern makes convoluting the signal less error prone as false positives are ruled out and the timing is more precise.
 
 The convolution can be done with `arm_conv_partial_f32`. It takes the signal that we sent, which we generated earlier.
 
@@ -129,7 +130,7 @@ $$
 $$
 
 
-The actual distance contains a small but fixed offset caused by the experimantal setup that can be encountered through calibrating the measurement once, by subtracting the offset value. 
+The actual distance contains a small but fixed offset caused by the experimental setup that can be encountered through calibrating the measurement once, by subtracting the offset value. 
 
 
 #### Output
