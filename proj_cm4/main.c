@@ -478,7 +478,6 @@ int main(void)
     {
         switch (msg_cmd) {
             case IPC_START_S:  
-                cyhal_pdm_pcm_clear(&pdm_pcm);  
                 printf("\nS\n");
                 /* Check if any microphone has data to process */
                 // if (pdm_pcm_flag) 
@@ -501,6 +500,7 @@ int main(void)
                 pdm_pcm_flag = 0;
 
                 // do busy wait
+                cyhal_pdm_pcm_clear(&pdm_pcm);  
                 cyhal_pdm_pcm_read_async(&pdm_pcm, audio_frame, FRAME_SIZE);
                 Cy_SysLib_Delay(10);
 
