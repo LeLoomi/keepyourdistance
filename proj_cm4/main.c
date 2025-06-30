@@ -626,17 +626,6 @@ int main(void)
     }
 }
 
-/*******************************************************************************
-* Function Name: pdm_pcm_isr_handler
-********************************************************************************
-* Summary:
-*  PDM/PCM ISR handler. Set a flag to be processed in the main loop.
-*
-* Parameters:
-*  arg: not used
-*  event: event that occurred
-*
-*******************************************************************************/
 void pdm_pcm_isr_handler(void *arg, cyhal_pdm_pcm_event_t event)
 {
     (void) arg;
@@ -645,13 +634,6 @@ void pdm_pcm_isr_handler(void *arg, cyhal_pdm_pcm_event_t event)
     pdm_pcm_flag = true;
 }
 
-/*******************************************************************************
-* Function Name: clock_init
-********************************************************************************
-* Summary:
-*  Initialize the clocks in the system.
-*
-*******************************************************************************/
 void clock_init(void)
 {
     /* Initialize the PLL */
@@ -667,5 +649,3 @@ void clock_init(void)
     cyhal_clock_set_source(&audio_clock, &pll_clock);
     cyhal_clock_set_enabled(&audio_clock, true, true);
 }
-
-/* [] END OF FILE */
