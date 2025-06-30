@@ -2,6 +2,7 @@ import sys
 import glob
 import serial
 import numpy as np
+import time
 
 from data_processing import data_processing
 
@@ -68,9 +69,9 @@ def normalize(array, coef = 0):
 def get_data(gui):
     port = get_port()
     if port is None:
-        port = '/dev/tty.usbmodem2103'
+        port = '/dev/tty.usbmodem103'
 
-    ser = serial.Serial('/dev/tty.usbmodem2103', 115200, timeout=1)
+    ser = serial.Serial('/dev/tty.usbmodem103', 115200, timeout=1)
 
     distance_array = []
     
@@ -82,19 +83,25 @@ def get_data(gui):
     start_var = False
 
     try:
-        while ser.in_waiting:
-            line = ser.readline().decode('utf-8', errors='ignore').strip()
+        while True:
+            line = ser.readline().decode('utf-8', errors='ignore').strip()            
+            # time.sleep(0.5)
 
             if line.startswith('S'):
                 if start_var:
-                    if cycle == 1:
-                        gui.update_plot(psoc_data_array[1, 0, :], SAMPLING_RATE)   
-                        cycle += 1  
+                    if cycle >= 1:
+                        gui.update_plot(psoc_data_array[cycle % DATA_BUFFER_SIZE, 0, :], 
+                                        psoc_data_array[cycle % DATA_BUFFER_SIZE, 1, :], 
+                                        psoc_data_array[cycle % DATA_BUFFER_SIZE, 6, :],
+                                        SAMPLING_RATE)   
+                    cycle += 1  
                 start_var = True
 
 
-            if len(line) < 3:
+            if len(line) < 5:
                 continue
+
+            print(line[:2])
             
             data_type = line[0]
             print(data_type)
@@ -152,7 +159,7 @@ def get_data(gui):
                             psoc_data_array[cycle % DATA_BUFFER_SIZE, 6, :] = x_freq
                                                     
                         case _:
-                            continue  
+                            continue
 
             except ValueError:
                 continue
@@ -160,5 +167,7 @@ def get_data(gui):
 
     except Exception as e:
             print("Error while reading the serial port:", e)
+
+    print("ENDING... UNREACHABLE")
     
     
